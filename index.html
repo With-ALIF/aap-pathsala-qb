@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="bn" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>প্রশ্নব্যাংক — সম্পূর্ণ আর্কাইভ</title>
+<meta name="description" content="Offline question bank archive: 210,000+ questions with faceted filtering and search.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f766e'/%3E%3Ctext x='16' y='23' font-size='19' font-family='sans-serif' font-weight='700' fill='%23fff' text-anchor='middle'%3E%E0%A6%AA%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-answers="on">
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <h1>প্রশ্নব্যাংক</h1>
+      <span class="sub" id="brandSub">loading…</span>
+    </div>
+    <button class="icon-btn" id="answersBtn" aria-pressed="true" title="উত্তর দেখান/লুকান (a)">উত্তর লুকান</button>
+    <button class="icon-btn" id="shuffleBtn" title="বর্তমান ফলাফল এলোমেলো করুন">এলোমেলো</button>
+    <button class="icon-btn" id="csvBtn" title="বর্তমান ফলাফল CSV ফাইলে নামান">CSV</button>
+    <button class="icon-btn" id="resetBtn" title="সব ফিল্টার মুছুন">রিসেট</button>
+    <button class="icon-btn" id="themeBtn" title="থিম বদলান">থিম</button>
+  </div>
+</header>
+
+<div class="indexing" id="indexing" hidden>
+  <div class="indexing-inner">
+    <div class="bar"><div class="fill" id="indexFill"></div></div>
+    <span id="indexText">সূচি তৈরি হচ্ছে…</span>
+  </div>
+</div>
+
+<section class="filters" aria-label="ফিল্টার">
+  <div class="field search-field">
+    <label for="q">খুঁজুন</label>
+    <div class="search-wrap">
+      <input type="search" id="q" placeholder="প্রশ্ন, বিকল্প, অধ্যায় বা টপিক…" autocomplete="off">
+      <kbd>/</kbd>
+    </div>
+  </div>
+
+  <div class="field">
+    <label for="fDb">ডেটাবেস</label>
+    <select id="fDb"><option value="">সব</option></select>
+  </div>
+
+  <div class="field">
+    <label for="fUn">বিশ্ববিদ্যালয় / ইনস্টিটিউট</label>
+    <select id="fUn"><option value="">সব</option></select>
+  </div>
+
+  <div class="field">
+    <label for="fY">সাল</label>
+    <select id="fY"><option value="">সব</option></select>
+  </div>
+
+  <div class="field ms-field" id="msS">
+    <label for="fSBtn">বিষয়</label>
+    <button type="button" class="ms-btn" id="fSBtn" aria-haspopup="true" aria-expanded="false">সব</button>
+    <div class="ms-pop" id="fSPop" hidden>
+      <div class="ms-head">
+        <span id="fSCount"></span>
+        <button type="button" class="ms-clear" id="fSClear">সব মুছুন</button>
+      </div>
+      <div class="ms-list" id="fSList" role="group" aria-label="বিষয়"></div>
+    </div>
+  </div>
+
+  <div class="field">
+    <label for="fC">অধ্যায়</label>
+    <select id="fC"><option value="">সব</option></select>
+  </div>
+
+  <div class="field">
+    <label for="fK">টপিক</label>
+    <select id="fK"><option value="">সব</option></select>
+  </div>
+
+  <div class="field">
+    <label for="fTy">প্রশ্নের ধরন</label>
+    <select id="fTy">
+      <option value="">সব</option>
+      <option value="mcq">MCQ (নির্বাচনী)</option>
+      <option value="written">Written (লিখিত)</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="fN">অপশন সংখ্যা</label>
+    <select id="fN">
+      <option value="">সব</option>
+      <option value="2">2টি</option>
+      <option value="3">3টি</option>
+      <option value="4">4টি</option>
+      <option value="5">5টি</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="fSort">সাজান</label>
+    <select id="fSort">
+      <option value="default">ডিফল্ট</option>
+      <option value="y-desc">সাল: নতুন আগে</option>
+      <option value="y-asc">সাল: পুরোনো আগে</option>
+      <option value="db">ডেটাবেস</option>
+      <option value="s">বিষয়</option>
+      <option value="k">টপিক</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>অতিরিক্ত</label>
+    <div class="checkrow">
+      <label class="check"><input type="checkbox" id="fE"> ব্যাখ্যা আছে</label>
+      <label class="check"><input type="checkbox" id="fImg"> ছবি আছে</label>
+    </div>
+  </div>
+</section>
+
+<div class="statusbar">
+  <span id="count">—</span>
+  <div class="chips" id="chips"></div>
+  <span class="spacer"></span>
+  <span id="shownNote"></span>
+</div>
+
+<main id="list" aria-live="polite"></main>
+<div class="sentinel" id="sentinel"></div>
+<button class="icon-btn loadmore" id="moreBtn" hidden>আরও দেখান</button>
+
+<footer>
+  <p>
+    অফলাইন আর্কাইভ — মোট <span id="srcTotal">—</span>টি প্রশ্ন, <span id="srcShards">—</span>টি শার্ডে ভাগ করা।
+  </p>
+  <p>শর্টকাট: <code>/</code> খুঁজুন · <code>a</code> উত্তর লুকান/দেখান · <code>Esc</code> ফোকাস সরাও।</p>
+</footer>
+
+<div class="modal-back" id="csvModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="csvTitle">
+    <h3 id="csvTitle">CSV এক্সপোর্ট</h3>
+    <p class="modal-hint">
+      যে ফলাফল এখন দেখাচ্ছে সেগুলো থেকে শুরু-শেষ লিখুন —
+      <code>1</code> থেকে <code>10</code>, <code>5</code> থেকে <code>50</code>।
+      একই রেঞ্জ দুই ফরম্যাটেই যাবে।
+      <span id="csvAvail"></span>
+    </p>
+    <div class="range-row">
+      <div class="range-cell">
+        <label class="modal-label" for="csvFrom">শুরু</label>
+        <input type="text" id="csvFrom" placeholder="1" inputmode="numeric" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="range-cell">
+        <label class="modal-label" for="csvTo">শেষ</label>
+        <input type="text" id="csvTo" placeholder="10" inputmode="numeric" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+    <label class="modal-label" for="csvName">ফাইলের নাম <span class="modal-opt">(ঐচ্ছিক)</span></label>
+    <input type="text" id="csvName" placeholder="questions-1-10.csv" autocomplete="off" spellcheck="false">
+    <p class="modal-sub">
+      নাম খালি রাখলে রেঞ্জ অনুযায়ী নিজে বসবে —
+      <code>questions-1-10.csv</code> বা <code>mnr-1-10.csv</code>;
+      শেষে <code>.csv</code> না থাকলে যোগ হবে।
+    </p>
+    <p class="modal-err" id="csvErr" hidden></p>
+    <p class="modal-sub" id="csvFmtHint"></p>
+    <div class="modal-actions">
+      <button class="icon-btn primary" id="csvGo">CSV Export</button>
+      <button class="icon-btn mnr" id="csvMnr">MNR Export</button>
+      <button class="icon-btn" id="csvCancel">বাতিল</button>
+    </div>
+    <p class="modal-note" id="csvNote"></p>
+  </div>
+</div>
+
+<script src="shards.js"></script>
+<script src="manifest.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
