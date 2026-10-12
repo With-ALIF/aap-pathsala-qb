@@ -308,6 +308,14 @@ main { max-width: 1180px; margin: 0 auto; padding: 0 1rem 1rem; }
 .qcard:target { border-color: var(--accent); }
 
 .qhead { display: flex; align-items: flex-start; gap: .6rem; margin-bottom: .5rem; }
+.qsel {
+  flex: none;
+  margin: .25rem 0 0;
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
 .qnum {
   flex: none;
   font: 700 .78rem/1.6 var(--mono);
@@ -426,6 +434,29 @@ body[data-answers="off"] .answer-note { display: none; }
 
 .sentinel { height: 1px; }
 
+/* ---------- selection bar (checkbox picks → CSV/MNR) ---------- */
+.selbar {
+  position: fixed;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: calc(100vw - 2rem);
+  padding: .55rem .8rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  box-shadow: 0 4px 16px rgba(16, 24, 40, .14);
+}
+.selbar[hidden] { display: none; }
+.selbar-count { font-size: .85rem; font-weight: 600; color: var(--accent); white-space: nowrap; }
+html[data-theme="dark"] .selbar { box-shadow: 0 4px 16px rgba(0, 0, 0, .5); }
+
 footer {
   max-width: 1180px;
   margin: 0 auto;
@@ -470,7 +501,8 @@ footer code { font-family: var(--mono); font-size: .95em; }
 .range-row .range-cell { flex: 1 1 0; min-width: 0; }
 .modal-sub { margin: .35rem 0 0; color: var(--muted); font-size: .78rem; line-height: 1.55; }
 .modal-sub code { font-family: var(--mono); background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 0 .25rem; }
-.modal input[type="text"] {
+.modal input[type="text"],
+.modal input[type="date"] {
   width: 100%;
   padding: .55rem .65rem;
   border: 1px solid var(--border);
@@ -479,12 +511,15 @@ footer code { font-family: var(--mono); font-size: .95em; }
   color: var(--text);
   font: inherit;
 }
-.modal input[type="text"]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.modal input[type="text"]:focus,
+.modal input[type="date"]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .modal-err { margin: .5rem 0 0; color: var(--wrong); font-size: .84rem; }
 .modal-err[hidden] { display: none; }
 .modal-note { margin: .6rem 0 0; color: var(--muted); font-size: .82rem; min-height: 1em; }
 .modal-actions { display: flex; gap: .5rem; margin-top: .9rem; }
 .modal-actions .icon-btn { flex: 1; }
+.pdf-group { margin-top: .7rem; }
+.pdf-group:first-of-type { margin-top: 0; }
 .icon-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .icon-btn.primary:hover { filter: brightness(1.08); }
 .icon-btn.mnr { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
@@ -496,10 +531,162 @@ footer code { font-family: var(--mono); font-size: .95em; }
   .qhead { flex-wrap: wrap; }
   .qmeta { margin-left: 0; width: 100%; justify-content: flex-start; }
   .brand h1 { font-size: 1rem; }
+
+  /* selection bar: full-width bottom bar, not a cramped centered pill */
+  .selbar {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: none;
+    transform: none;
+    border-radius: 14px 14px 0 0;
+    border-bottom: 0;
+    justify-content: center;
+    gap: .4rem;
+    padding: .5rem .6rem calc(.55rem + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -4px 18px rgba(16, 24, 40, .18);
+  }
+  html[data-theme="dark"] .selbar { box-shadow: 0 -4px 18px rgba(0, 0, 0, .55); }
+  .selbar-count { flex: 1 0 100%; text-align: center; font-size: .8rem; }
+  .selbar .icon-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: .45rem .15rem;
+    font-size: .75rem;
+    text-align: center;
+  }
+  /* keep the last card clear of the fixed bar */
+  main { padding-bottom: 7rem; }
 }
 
+/* ---------- exam-paper PDF layout (hidden on screen; print media shows it) ---------- */
+/* explicit print colors so borders/text survive grayscale printing */
+#paper { display: none; }
+.paper-doc {
+  background: #fff;
+  color: #111;
+  font-family: var(--font);
+  font-size: 11px;          /* compact: ~14-20 questions fit one A4 page */
+  line-height: 1.45;
+  padding: 10mm 8mm;
+}
+.paper-head {
+  text-align: center;
+  border-bottom: 2.5px solid #111;
+  padding-bottom: 6px;
+  margin-bottom: 10px;
+}
+.paper-head h1 { margin: 0 0 3px; font-size: 17px; letter-spacing: .01em; color: #111; }
+.paper-meta { margin: 0; font-size: 11px; color: #333; }
+.paper-note { margin: 4px 0 0; font-size: 10.5px; color: #444; }
+/* two-column question body per page (header + key stay full width) */
+.paper-cols {
+  column-count: 2;
+  column-gap: 7mm;
+  column-rule: 1px solid #bbb;
+}
+.pq {
+  page-break-inside: avoid;
+  break-inside: avoid;
+  column-break-inside: avoid;
+  margin-bottom: 6px;
+}
+.pq-q { margin: 0 0 2px; }
+.pq-n { font-weight: 700; margin-right: 5px; }
+.pq-body img { max-width: 100%; height: auto; }
+.pq-body p { margin: 0 0 .2rem; }
+/* narrow columns: options sized by length —
+   inline = up to 4 in one line, half = 2 per line, stack = 1 per line */
+.pq-opts { display: flex; flex-wrap: wrap; margin-left: 12px; }
+.pq-opt { display: flex; gap: 5px; margin-bottom: 1px; min-width: 0; }
+.pq-opt p { margin: 0; }
+.pq-opts.inline { flex-wrap: nowrap; }
+.pq-opts.inline .pq-opt { flex: 1 1 30px; width: auto; }
+.pq-opts.half .pq-opt { width: 50%; }
+.pq-opts.stack .pq-opt { width: 100%; }
+.pq-key { font-weight: 600; flex: none; }
+.pq-val { min-width: 0; }
+.pq-val img { max-width: 100%; height: auto; }
+.pq-keysec {
+  page-break-before: always;
+  break-before: page;
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 2px solid #111;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.pq-keysec h2 { margin: 0 0 6px; font-size: 13px; color: #111; }
+.pq-keytable { border-collapse: collapse; font-size: 11.5px; }
+.pq-keytable td {
+  border: 1px solid #777;
+  padding: 2px 8px;
+  min-width: 50px;
+  text-align: center;
+  font-weight: 600;
+}
+.paper-foot {
+  margin-top: 14px;
+  padding-top: 5px;
+  border-top: 1px solid #999;
+  text-align: center;
+  font-size: 10px;
+  color: #555;
+}
+
+/* ---------- Part 2: solution with answer + explanation (~12-14/page) ---------- */
+.pq-solsec {
+  page-break-before: always;
+  break-before: page;
+}
+.pq-solhead {
+  margin: 0 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid #111;
+  text-align: center;
+  font-size: 15px;
+  color: #111;
+}
+/* solutions also flow in 2 columns per page */
+.sol-cols {
+  column-count: 2;
+  column-gap: 7mm;
+  column-rule: 1px solid #bbb;
+}
+.psol {
+  page-break-inside: avoid;
+  break-inside: avoid;
+  column-break-inside: avoid;
+  margin-bottom: 4mm;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.psol-q { margin: 0 0 2px; }
+.psol-a { margin: 0 0 2px; }
+.psol-alabel { font-weight: 700; }
+.psol-e { margin: 0; color: #222; }
+.psol-e p { margin: 0 0 .2rem; }
+.psol img { max-width: 120px; height: auto; }
+
 @media print {
-  .topbar, .filters, .statusbar, footer, .loadmore, .modal-back { display: none !important; }
+  /* normal app print: hide UI chrome */
+  .topbar, .filters, .statusbar, footer, .loadmore, .modal-back, .selbar, .qsel { display: none !important; }
   body { background: #fff; }
   .qcard { break-inside: avoid; box-shadow: none; }
+
+  /* exam-paper mode (body.printing): show ONLY the paper */
+  @page { size: A4; margin: 10mm 9mm; }
+  body.printing { background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  body.printing > *:not(#paper) { display: none !important; }
+  body.printing #paper {
+    display: block !important;
+    position: static;
+    width: auto;
+    margin: 0;
+    background: #fff;
+    color: #111;
+  }
+  /* @page already provides the margins */
+  body.printing .paper-doc { padding: 0; }
 }

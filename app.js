@@ -15,6 +15,21 @@
   var CTRL_ID = { n: 'fN' };         // non-facet controls that can also be cleared from a chip
   var NONE = '__none__';             // select value that means "field has no value"
   var TYPE_LABEL = { mcq: 'MCQ (নির্বাচনী)', written: 'Written (লিখিত)' };
+  // short paper/subject codes in the data -> full names (HSC admission bank).
+  // B = জীববিজ্ঞান (NOT Bangla); Ba = বাংলা.
+  var SUBJ_LABEL = {
+    'b': 'জীববিজ্ঞান', 'B-1': 'জীববিজ্ঞান ১ম পত্র', 'B-2': 'জীববিজ্ঞান ২য় পত্র',
+    'ba': 'বাংলা', 'Ba-1': 'বাংলা ১ম পত্র', 'Ba-2': 'বাংলা ২য় পত্র',
+    'c': 'রসায়ন', 'C-1': 'রসায়ন ১ম পত্র', 'C-2': 'রসায়ন ২য় পত্র',
+    'm': 'উচ্চতর গণিত', 'M-1': 'উচ্চতর গণিত ১ম পত্র', 'M-2': 'উচ্চতর গণিত ২য় পত্র',
+    'p': 'পদার্থবিজ্ঞান', 'P-1': 'পদার্থবিজ্ঞান ১ম পত্র', 'P-2': 'পদার্থবিজ্ঞান ২য় পত্র',
+    'e': 'ইংরেজি', 'En-Tex': 'ইংরেজি টেক্সট', 'En-Wri': 'ইংরেজি রাইটিং', 'Eng-Grm': 'ইংরেজি ব্যাকরণ',
+    'gk': 'সাধারণ জ্ঞান', 'GK-BD': 'সাধারণ জ্ঞান — বাংলাদেশ', 'GK-Int': 'সাধারণ জ্ঞান — আন্তর্জাতিক',
+    'ICT': 'তথ্য ও যোগাযোগ প্রযুক্তি', 'IQ': 'বুদ্ধিমত্তা পরীক্ষা (IQ)',
+    'FMT': 'ফ্রি মক টেস্ট (FMT)', 'Live': 'লাইভ ক্লাস', 'Weekly': 'সাপ্তাহিক পরীক্ষা',
+    'EXTRA': 'অতিরিক্ত প্রশ্ন',
+    'সাধারন গণিত': 'সাধারণ গণিত', 'সাধারন বিজ্ঞান': 'সাধারণ বিজ্ঞান'
+  };
   // facets whose values are derived at load time instead of shipped in manifest.js
   var STATIC_LIST = { ty: [{ value: 'mcq' }, { value: 'written' }] };
   var FLAT = [];                     // all index records, flattened across shards
@@ -28,6 +43,8 @@
   var loading = false;               // a content shard is being fetched for the visible page
   var noteOverride = null;           // transient status text (e.g. "shuffled")
   var lastSyncedHash = null;         // last hash this script wrote (ignores our own hashchange)
+  var selMap = Object.create(null);  // selected question pk -> idx record
+  var selOrder = [];                 // selection order (stable CSV row order)
 
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = String(text); return n; }
@@ -112,6 +129,7 @@
   }
   function labelFor(facet, key) {
     if (facet === 'ty') return TYPE_LABEL[key] || key;
+    if (facet === 's') return SUBJ_LABEL[key] || key;
     if (key === NONE) return '(নির্দিষ্ট নয়)';
     return key;
   }
@@ -125,6 +143,7 @@
       if (i >= NSHARD) {
         box.hidden = true;
         indexReady = true;
+        restoreSel();          // bring back pre-refresh checkbox picks
         recompute();
         scrollToQuestion();
         return;
@@ -311,10 +330,18 @@
     var c = el('article', 'qcard');
     c.id = 'q-' + idx.p;
     var head = el('div', 'qhead');
+    var sel = document.createElement('input');
+    sel.type = 'checkbox';
+    sel.className = 'qsel';
+    sel.checked = selMap[idx.p] !== undefined;
+    sel.title = 'CSV-তে নেওয়ার জন্য এই প্রশ্নটি নির্বাচন করুন';
+    sel.setAttribute('aria-label', 'প্রশ্ন নির্বাচন করুন');
+    sel.addEventListener('change', function () { toggleSel(idx, sel.checked); });
+    head.appendChild(sel);
     head.appendChild(el('span', 'qnum', n));
     var meta = el('div', 'qmeta');
     if (idx.ty === 'written') meta.appendChild(el('span', 'tag tag-w', 'Written'));
-    [idx.y && ('সাল ' + idx.y), idx.db, idx.un, idx.s, idx.c, idx.k].forEach(function (t) { if (t) meta.appendChild(el('span', 'tag', t)); });
+    [idx.y && ('সাল ' + idx.y), idx.db, idx.un, idx.s != null && String(idx.s) !== '' ? labelFor('s', plain(idx.s)) : idx.s, idx.c, idx.k].forEach(function (t) { if (t) meta.appendChild(el('span', 'tag', t)); });
     var link = el('button', 'tag pk', '#' + idx.p);
     link.type = 'button';
     link.title = 'এই প্রশ্নের লিংক কপি করুন';
@@ -373,6 +400,46 @@
     }
   }
 
+  // the print-only paper is display:none on screen, so lazy images there would
+  // never intersect the viewport and never load — force them instead
+  function eagerImgs(node) {
+    var imgs = node.getElementsByTagName('img');
+    for (var i = 0; i < imgs.length; i++) {
+      imgs[i].setAttribute('loading', 'eager');
+      imgs[i].setAttribute('decoding', 'sync');
+    }
+  }
+
+  // resolves once every image under root has loaded (or failed), then decodes
+  // the successful ones — capped so a dead host can't block the print dialog
+  function imagesReady(root, timeoutMs) {
+    var all = root.getElementsByTagName('img');
+    var pending = [], i;
+    for (i = 0; i < all.length; i++) if (!all[i].complete) pending.push(all[i]);
+    var wait = !pending.length ? Promise.resolve() : new Promise(function (resolve) {
+      var settled = false;
+      var timer = setTimeout(function () { if (!settled) { settled = true; resolve(); } }, timeoutMs || 15000);
+      var tick = function () {
+        if (settled) return;
+        for (var j = 0; j < pending.length; j++) if (!pending[j].complete) return;
+        settled = true; clearTimeout(timer); resolve();
+      };
+      for (var k = 0; k < pending.length; k++) {
+        pending[k].addEventListener('load', tick);
+        pending[k].addEventListener('error', tick);
+      }
+      tick();   // an image may have finished between the scan and the listeners
+    });
+    return wait.then(function () {
+      var dec = [], all2 = root.getElementsByTagName('img');
+      for (var n = 0; n < all2.length; n++) {
+        var im = all2[n];
+        if (im.complete && im.naturalWidth > 0 && im.decode) dec.push(im.decode().then(function () {}, function () {}));
+      }
+      return Promise.all(dec);
+    });
+  }
+
   function copyLink(pk) {
     var url = location.href.split('#')[0] + '#p=' + encodeURIComponent(pk);
     var fallback = function () { location.hash = 'p=' + encodeURIComponent(pk); };
@@ -384,6 +451,56 @@
     $('shownNote').textContent = msg;
     clearTimeout(flashNote.t);
     flashNote.t = setTimeout(function () { updateStatus(); }, 3000);
+  }
+
+  // ---------- question selection (checkbox → CSV/MNR) ----------
+  function toggleSel(rec, on) {
+    var pk = rec.p;
+    if (on) {
+      if (selMap[pk] === undefined) { selMap[pk] = rec; selOrder.push(pk); }
+    } else if (selMap[pk] !== undefined) {
+      delete selMap[pk];
+      var i = selOrder.indexOf(pk);
+      if (i !== -1) selOrder.splice(i, 1);
+    }
+    updateSelBar();
+    saveSel();
+  }
+  function selRecs() {
+    var out = [];
+    for (var i = 0; i < selOrder.length; i++) {
+      var r = selMap[selOrder[i]];
+      if (r) out.push(r);
+    }
+    return out;
+  }
+  function updateSelBar() {
+    var n = selOrder.length;
+    $('selBar').hidden = n === 0;
+    $('selCount').textContent = n ? num(n) + 'টি প্রশ্ন নির্বাচিত' : '';
+  }
+  // refresh-proof selection: only pks are stored; records re-resolve from
+  // the freshly loaded index on startup.
+  var SEL_KEY = 'qb-selected';
+  function saveSel() {
+    try { localStorage.setItem(SEL_KEY, JSON.stringify(selOrder)); } catch (e) {}
+  }
+  function restoreSel() {
+    var arr = [];
+    try { arr = JSON.parse(localStorage.getItem(SEL_KEY) || '[]') || []; } catch (e) {}
+    if (!arr.length || !arr.push) return;
+    var byP = Object.create(null);
+    for (var i = 0; i < FLAT.length; i++) byP[FLAT[i].p] = FLAT[i];
+    var kept = [];
+    for (var j = 0; j < arr.length; j++) {
+      var pk = arr[j];
+      if (byP[pk] !== undefined && selMap[pk] === undefined) {
+        selMap[pk] = byP[pk];
+        kept.push(pk);
+      }
+    }
+    selOrder = kept;
+    updateSelBar();
   }
 
   // ---------- CSV export ----------
@@ -546,8 +663,7 @@
     } catch (e) { return false; }
   }
 
-  function csvExportRange(from, to, fmt) {
-    var rows = results.slice(from - 1, to);
+  function csvExportRows(rows, fmt) {
     var need = pendingFor(rows);
     if (!need.length) return Promise.resolve(fmt === 'mnr' ? buildMNR(rows) : buildCSV(rows));
     var done = 0;
@@ -557,6 +673,10 @@
         $('csvNote').textContent = 'কনটেন্ট লোড হচ্ছে ' + (++done) + '/' + need.length + ' শার্ড…';
       });
     })).then(function () { return fmt === 'mnr' ? buildMNR(rows) : buildCSV(rows); });
+  }
+
+  function csvExportRange(from, to, fmt) {
+    return csvExportRows(results.slice(from - 1, to), fmt);
   }
 
   function csvErr(msg) { var e = $('csvErr'); e.textContent = msg; e.hidden = false; }
@@ -611,7 +731,8 @@
     if (!indexReady) { flashNote('আগে সূচি তৈরি হতে দিন'); return; }
     $('csvErr').hidden = true;
     $('csvNote').textContent = '';
-    $('csvAvail').textContent = ' এখন মোট ' + num(results.length) + 'টি ফলাফল আছে।';
+    $('csvAvail').textContent = ' এখন মোট ' + num(results.length) + 'টি ফলাফল আছে।'
+      + (selOrder.length ? ' (' + num(selOrder.length) + 'টি চেকবক্স দিয়ে নির্বাচিত — সিলেক্ট বার থেকে আলাদাও নামানো যায়)' : '');
     $('csvFrom').value = '';
     $('csvTo').value = '';
     $('csvName').value = loadLastName();
@@ -656,6 +777,280 @@
     });
   }
 
+  // export the checkbox-picked questions (any order, survives filter changes)
+  function autoSelName(fmt) {
+    return (fmt === 'mnr' ? 'mnr' : 'questions') + '-selected-' + selOrder.length + '.csv';
+  }
+  function runSelExport(fmt) {
+    if (exporting) return;
+    var rows = selRecs();
+    if (!rows.length) return;
+    var nm = autoSelName(fmt);
+    exporting = true;
+    setSelBusy(true);
+    csvExportRows(rows, fmt).then(function (csv) {
+      window.__lastCSV = csv;
+      window.__lastFmt = fmt;
+      window.__lastName = nm;
+      var ok = downloadCSV(csv, nm);
+      setSelBusy(false);
+      flashNote(num(rows.length) + 'টি নির্বাচিত প্রশ্ন ' + (fmt === 'mnr' ? 'MNR-এ' : 'CSV-তে') + ' নেওয়া হয়েছে' + (ok ? '' : ' — ডাউনলোড ব্যর্থ'));
+    }, function (e) {
+      setSelBusy(false);
+      flashNote('লোড ব্যর্থ: ' + e.message);
+    });
+  }
+
+  function setSelBusy(on) {
+    exporting = on;
+    $('selCsv').disabled = on;
+    $('selMnr').disabled = on;
+    $('selPdf').disabled = on;
+  }
+
+  // ---------- exam-paper PDF (selected questions) ----------
+  var BN_DIGITS = '০১২৩৪৫৬৭৮৯';
+  var BN_LETTERS = ['ক', 'খ', 'গ', 'ঘ', 'ঙ', 'চ', 'ছ', 'জ', 'ঝ', 'ঞ'];
+  function bnNum(v) { return String(v).replace(/[0-9]/g, function (d) { return BN_DIGITS[+d]; }); }
+  function paperDate() {
+    var d = new Date();
+    try { return d.toLocaleDateString('bn-BD'); } catch (e) { return d.toISOString().slice(0, 10); }
+  }
+  function todayISO() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  // <input type="date"> → yyyy-mm-dd; the paper prints it as ১২/১০/২০২৬
+  function bnISODate(iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || '').trim());
+    return m ? bnNum(m[3]) + '/' + bnNum(m[2]) + '/' + bnNum(m[1]) : '';
+  }
+
+  // professional exam-paper layout: header, two-column question body (per-page),
+  // numbered questions with ক/খ/গ options, answer key table at the end,
+  // then Part 2 (new page): answer + explanation solutions.
+  function paperSubjects(rows) {
+    var set = [], seen = Object.create(null);
+    rows.forEach(function (r) {
+      if (r.s == null || String(r.s) === '') return;
+      var nm = labelFor('s', plain(r.s));
+      if (!seen[nm]) { seen[nm] = 1; set.push(nm); }
+    });
+    return set.join(', ');
+  }
+
+  function buildPaper(rows, meta) {
+    meta = meta || {};
+    var box = $('paper');
+    box.innerHTML = '';
+    var doc = el('div', 'paper-doc');
+
+    var head = el('header', 'paper-head');
+    head.appendChild(el('h1', null, meta.title || 'নির্বাচিত প্রশ্নের পরীক্ষাপত্র'));
+    head.appendChild(el('p', 'paper-meta',
+      (meta.subject ? 'বিষয়: ' + meta.subject + '   |   ' : '')
+      + 'মোট প্রশ্ন: ' + bnNum(rows.length) + 'টি   |   তারিখ: ' + (meta.date || paperDate())));
+    head.appendChild(el('p', 'paper-note', 'সঠিক উত্তর নির্বাচন করুন। উত্তর ও ব্যাখ্যাসহ সমাধান প্রশ্নপত্রের পরের অংশে দেওয়া আছে।'));
+    doc.appendChild(head);
+
+    var cols = el('div', 'paper-cols');   // questions flow in 2 columns per page
+    doc.appendChild(cols);
+
+    var key = [];
+    rows.forEach(function (rec, i) {
+      var full = (DATMAP[rec._sh] || {})[rec.p] || {};
+      var q = el('section', 'pq');
+
+      var qt = el('p', 'pq-q');
+      qt.appendChild(el('span', 'pq-n', bnNum(i + 1) + '.'));
+      var qbody = el('span', 'pq-body');
+      if (full.q) { qbody.innerHTML = full.q; eagerImgs(qbody); } else qbody.textContent = plain(rec.t);
+      qt.appendChild(qbody);
+      q.appendChild(qt);
+
+      var opts = full.o || [];
+      var mcq = rec.ty !== 'written' && optsReal(opts);
+      if (mcq) {
+        // option length -> row layout: short = 4 in one line, medium = 2 per
+        // line, long (or image) = 1 per line.
+        var maxLen = 0;
+        opts.forEach(function (o) {
+          var h = (o && o.h) || '';
+          var L = /<img[\s>]/i.test(h) ? 999 : stripHTML(h || (o && o.t) || '').length;
+          if (L > maxLen) maxLen = L;
+        });
+        var optMode = maxLen <= 18 ? 'inline' : (maxLen <= 50 ? 'half' : 'stack');
+        var boxO = el('div', 'pq-opts ' + optMode);
+        var correct = null;
+        opts.forEach(function (o, oi) {
+          var letter = BN_LETTERS[oi] || String.fromCharCode(65 + oi);
+          var row = el('div', 'pq-opt');
+          row.appendChild(el('span', 'pq-key', '(' + letter + ')'));
+          var v = el('span', 'pq-val');
+          if (o.h) { v.innerHTML = o.h; eagerImgs(v); } else v.textContent = o.t || '';
+          row.appendChild(v);
+          boxO.appendChild(row);
+          if (o.c && correct == null) correct = letter;
+        });
+        q.appendChild(boxO);
+      }
+      cols.appendChild(q);
+
+      if (mcq) {
+        var ansLetter = correct;
+        if (!ansLetter && rec.a) ansLetter = BN_LETTERS[rec.a - 1] || String.fromCharCode(64 + rec.a);
+        key.push(bnNum(i + 1) + '–' + (ansLetter || '—'));
+      }
+    });
+
+    if (key.length) {
+      var sec = el('section', 'pq-keysec');
+      sec.appendChild(el('h2', null, 'উত্তর তালিকা'));
+      var table = el('table', 'pq-keytable');
+      var tr = null;
+      key.forEach(function (cell, i) {
+        if (i % 5 === 0) { tr = el('tr'); table.appendChild(tr); }
+        tr.appendChild(el('td', null, cell));
+      });
+      sec.appendChild(table);
+      doc.appendChild(sec);
+    }
+
+    // Part 2 (new page): solution with answer + explanation (~12-14 per page).
+    var sol = el('section', 'pq-solsec');
+    sol.appendChild(el('h2', 'pq-solhead', 'উত্তর ও ব্যাখ্যাসহ সমাধান'));
+    var solCols = el('div', 'sol-cols');   // 2 columns, like the question body
+    sol.appendChild(solCols);
+    rows.forEach(function (rec, i) {
+      var full = (DATMAP[rec._sh] || {})[rec.p] || {};
+      var item = el('div', 'psol');
+
+      var qp = el('p', 'psol-q');
+      qp.appendChild(el('span', 'pq-n', bnNum(i + 1) + '.'));
+      var qb2 = el('span', 'pq-body');
+      if (full.q) { qb2.innerHTML = full.q; eagerImgs(qb2); } else qb2.textContent = plain(rec.t);
+      qp.appendChild(qb2);
+      item.appendChild(qp);
+
+      var opts2 = full.o || [];
+      var mcq2 = rec.ty !== 'written' && optsReal(opts2);
+      if (mcq2) {
+        var letter2 = null, otext2 = '';
+        opts2.forEach(function (o, oi) {
+          if (o && o.c && letter2 == null) {
+            letter2 = BN_LETTERS[oi] || String.fromCharCode(65 + oi);
+            otext2 = plain(o.t) || stripHTML(o.h);
+          }
+        });
+        if (!letter2 && rec.a) {
+          letter2 = BN_LETTERS[rec.a - 1] || String.fromCharCode(64 + rec.a);
+          var ro = opts2[rec.a - 1];
+          if (ro) otext2 = plain(ro.t) || stripHTML(ro.h);
+        }
+        var ap = el('p', 'psol-a');
+        ap.appendChild(el('span', 'psol-alabel', 'সঠিক উত্তর: '));
+        ap.appendChild(document.createTextNode(letter2 ? '(' + letter2 + ')' + (otext2 ? ' ' + otext2 : '') : '—'));
+        item.appendChild(ap);
+      }
+
+      if (full.e || full.et) {
+        var ep = el('div', 'psol-e');
+        ep.appendChild(el('span', 'psol-alabel', 'ব্যাখ্যা: '));
+        if (full.e) {
+          var eb2 = el('span');
+          eb2.innerHTML = full.e; eagerImgs(eb2);
+          ep.appendChild(eb2);
+        } else ep.appendChild(document.createTextNode(full.et));
+        item.appendChild(ep);
+      }
+      solCols.appendChild(item);
+    });
+    doc.appendChild(sol);
+
+    var foot = el('footer', 'paper-foot', 'প্রশ্নব্যাংক আর্কাইভ — অফলাইন নির্বাচিত প্রশ্ন পরীক্ষাপত্র');
+    doc.appendChild(foot);
+
+    box.appendChild(doc);
+    return doc;
+  }
+
+  // Browser print pipeline: build the exam paper, force print media to show
+  // only #paper, then open the print dialog — "Save as PDF" gives a real,
+  // text-selectable PDF with correctly shaped Bangla (no canvas raster).
+  var lastPdfTitle = '';              // remembered for the session only
+
+  function openPdfModal() {
+    if (exporting) return;
+    var rows = selRecs();
+    if (!rows.length) { flashNote('আগে প্রশ্নগুলো চেক করুন — তারপর PDF নামান'); return; }
+    $('pdfAvail').textContent = ' এখন ' + num(rows.length) + 'টি প্রশ্ন নির্বাচিত।';
+    $('pdfTitleIn').value = lastPdfTitle;
+    $('pdfSubj').value = paperSubjects(rows);
+    $('pdfDate').value = todayISO();
+    $('pdfCount').value = bnNum(rows.length) + 'টি';
+    $('pdfNote').textContent = '';
+    $('pdfModal').hidden = false;
+    $('pdfTitleIn').focus();
+    $('pdfTitleIn').select();
+  }
+  function closePdf() { $('pdfModal').hidden = true; }
+
+  function pdfGo() {
+    if (exporting) return;
+    var rows = selRecs();
+    if (!rows.length) { closePdf(); return; }
+    var meta = {
+      title: ($('pdfTitleIn').value || '').trim() || 'নির্বাচিত প্রশ্নের পরীক্ষাপত্র',
+      subject: ($('pdfSubj').value || '').trim(),
+      date: bnISODate($('pdfDate').value) || paperDate()
+    };
+    lastPdfTitle = meta.title === 'নির্বাচিত প্রশ্নের পরীক্ষাপত্র' ? lastPdfTitle : meta.title;
+    closePdf();
+    generatePdf(rows, meta);
+  }
+
+  function generatePdf(rows, meta) {
+    if (exporting) return;
+    var need = pendingFor(rows);
+    setSelBusy(true);
+    if (need.length) flashNote('কনটেন্ট লোড হচ্ছে… (0/' + need.length + ' শার্ড)');
+    var done = 0;
+    var load = !need.length ? Promise.resolve()
+      : Promise.all(need.map(function (sh) {
+          return loadDat(sh).then(function () {
+            flashNote('কনটেন্ট লোড হচ্ছে… (' + (++done) + '/' + need.length + ' শার্ড)');
+          });
+        }));
+    load.then(function () {
+      buildPaper(rows, meta);
+      var nm = (sanitizeName(meta.title) || 'exam-paper') + '-' + rows.length + 'q';
+      window.__lastName = nm + '.pdf';
+      // browsers suggest this as the "Save as PDF" filename
+      var oldTitle = document.title;
+      document.title = nm;
+      document.body.classList.add('printing');
+      flashNote('ছবি লোড হচ্ছে…');
+      // print only after every question/explanation image has actually loaded,
+      // otherwise Save-as-PDF bakes in blank spaces
+      imagesReady($('paper')).then(function () {
+        flashNote('প্রিন্ট প্রিভিউ খুলছে… — "Save as PDF" বেছে নিন');
+        try { window.print(); } catch (e) {}
+        document.title = oldTitle;
+        setSelBusy(false);
+      });
+    }, function (e) {
+      setSelBusy(false);
+      flashNote('লোড ব্যর্থ: ' + e.message);
+    });
+  }
+
+  // release print mode once the dialog is gone (afterprint is async in some
+  // browsers; leaving the class on only affects print media, so it is safe)
+  window.addEventListener('afterprint', function () {
+    document.body.classList.remove('printing');
+    $('paper').innerHTML = '';
+  });
+
   // ---------- status ----------
   function updateStatus() {
     $('count').textContent = results.length === M.total
@@ -678,7 +1073,7 @@
     Object.keys(labels).forEach(function (key) {
       if (key === 's') {                       // one chip per selected subject
         state.s.forEach(function (v) {
-          addChip('s', v, v === NONE ? '(নির্দিষ্ট নয়)' : v, v);
+          addChip('s', v, v === NONE ? '(নির্দিষ্ট নয়)' : labelFor('s', v), v);
         });
         return;
       }
@@ -896,12 +1291,36 @@
   });
   $('resetBtn').addEventListener('click', reset);
   $('csvBtn').addEventListener('click', openCSV);
+  $('selCsv').addEventListener('click', function () { runSelExport('csv'); });
+  $('selMnr').addEventListener('click', function () { runSelExport('mnr'); });
+  $('selPdf').addEventListener('click', openPdfModal);
+  $('selClear').addEventListener('click', function () {
+    selMap = Object.create(null);
+    selOrder = [];
+    updateSelBar();
+    saveSel();
+    var boxes = document.getElementsByClassName('qsel');
+    for (var i = 0; i < boxes.length; i++) boxes[i].checked = false;
+    flashNote('সব নির্বাচন মুছে ফেলা হয়েছে');
+  });
   $('csvGo').addEventListener('click', function () { setFmt('csv'); runCSV('csv'); });
   $('csvMnr').addEventListener('click', function () { setFmt('mnr'); runCSV('mnr'); });
   $('csvGo').addEventListener('focus', function () { setFmt('csv'); });
   $('csvMnr').addEventListener('focus', function () { setFmt('mnr'); });
   $('csvCancel').addEventListener('click', closeCSV);
   $('csvModal').addEventListener('click', function (e) { if (e.target === $('csvModal')) closeCSV(); });
+  $('pdfGo').addEventListener('click', pdfGo);
+  $('pdfCancel').addEventListener('click', closePdf);
+  $('pdfModal').addEventListener('click', function (e) { if (e.target === $('pdfModal')) closePdf(); });
+  $('pdfTitleIn').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); $('pdfSubj').focus(); $('pdfSubj').select(); }
+  });
+  $('pdfSubj').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); $('pdfDate').focus(); $('pdfDate').select(); }
+  });
+  $('pdfDate').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); pdfGo(); }
+  });
   function csvNamePlaceholder() {
     var r = readRange();
     $('csvName').placeholder = r
@@ -932,6 +1351,7 @@
     else if (e.key === 'a' && !typing) $('answersBtn').click();
     else if (e.key === 'Escape') {
       if (!$('fSPop').hidden) { $('fSPop').hidden = true; $('fSBtn').setAttribute('aria-expanded', 'false'); }
+      else if (!$('pdfModal').hidden) closePdf();
       else if (!$('csvModal').hidden) closeCSV();
       else $('q').blur();
     }

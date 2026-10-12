@@ -132,6 +132,14 @@
 <div class="sentinel" id="sentinel"></div>
 <button class="icon-btn loadmore" id="moreBtn" hidden>আরও দেখান</button>
 
+<div class="selbar" id="selBar" hidden>
+  <span class="selbar-count" id="selCount"></span>
+  <button class="icon-btn primary" id="selPdf" title="নির্বাচিত প্রশ্ন দিয়ে পরীক্ষাপত্র — আগে শিরোনাম/বিষয়/তারিখ দিন, তারপর Save as PDF">PDF নামান</button>
+  <button class="icon-btn" id="selCsv" title="নির্বাচিত প্রশ্ন CSV ফাইলে নামান">CSV</button>
+  <button class="icon-btn mnr" id="selMnr" title="নির্বাচিত প্রশ্ন MNR ফরম্যাটে নামান">MNR</button>
+  <button class="icon-btn" id="selClear" title="সব নির্বাচন মুছে দিন">নির্বাচন মুছুন</button>
+</div>
+
 <footer>
   <p>
     অফলাইন আর্কাইভ — মোট <span id="srcTotal">—</span>টি প্রশ্ন, <span id="srcShards">—</span>টি শার্ডে ভাগ করা।
@@ -175,6 +183,42 @@
     <p class="modal-note" id="csvNote"></p>
   </div>
 </div>
+
+<div class="modal-back" id="pdfModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pdfHead">
+    <h3 id="pdfHead">পরীক্ষাপত্র তৈরি (PDF)</h3>
+    <p class="modal-hint">
+      হেডারের লেখাগুলো নিজে বসান — ছাড়া শিরোনাম খালি রাখলে ডিফল্ট বসবে।
+      শেষে প্রিন্ট প্রিভিউ খুলবে, সেখানে <code>Save as PDF</code> বেছে নিন।
+      <span id="pdfAvail"></span>
+    </p>
+    <div class="pdf-group">
+      <label class="modal-label" for="pdfTitleIn">পরীক্ষাপত্রের শিরোনাম</label>
+      <input type="text" id="pdfTitleIn" placeholder="নির্বাচিত প্রশ্নের পরীক্ষাপত্র" autocomplete="off">
+    </div>
+    <div class="pdf-group">
+      <label class="modal-label" for="pdfSubj">বিষয়</label>
+      <input type="text" id="pdfSubj" placeholder="পদার্থবিজ্ঞান ১ম পত্র, উচ্চতর গণিত ১ম পত্র" autocomplete="off">
+    </div>
+    <div class="range-row pdf-group">
+      <div class="range-cell">
+        <label class="modal-label" for="pdfDate">তারিখ</label>
+        <input type="date" id="pdfDate">
+      </div>
+      <div class="range-cell">
+        <label class="modal-label" for="pdfCount">মোট প্রশ্ন</label>
+        <input type="text" id="pdfCount" readonly tabindex="-1" aria-readonly="true">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="icon-btn primary" id="pdfGo">PDF নামান</button>
+      <button class="icon-btn" id="pdfCancel">বাতিল</button>
+    </div>
+    <p class="modal-note" id="pdfNote"></p>
+  </div>
+</div>
+
+<div id="paper" aria-hidden="true"></div>
 
 <script src="shards.js"></script>
 <script src="manifest.js"></script>
