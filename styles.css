@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap');
+
 :root {
   --bg: #f6f7f9;
   --surface: #ffffff;
@@ -13,7 +15,7 @@
   --wrong-soft: #fee2e2;
   --radius: 10px;
   --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
-  --font: "Hind Siliguri", "Noto Sans Bengali", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font: "Hind Siliguri", "Noto Sans Bengali", "Kalpurush", "Nirmala UI", "Siyam Rupali", "SolaimanLipi", "Segoe UI", -apple-system, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
@@ -45,7 +47,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ---------- header ---------- */
 .topbar {
   position: sticky;
   top: 0;
@@ -84,7 +85,6 @@ body {
 .icon-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
 html[data-theme="dark"] .icon-btn[aria-pressed="true"] { color: #06211f; }
 
-/* ---------- filters ---------- */
 .filters {
   max-width: 1180px;
   margin: 0 auto;
@@ -119,7 +119,6 @@ html[data-theme="dark"] .icon-btn[aria-pressed="true"] { color: #06211f; }
 }
 .field select:disabled { opacity: .5; cursor: not-allowed; }
 
-/* subject multi-select: a checkbox dropdown, several subjects at once */
 .ms-field { position: relative; }
 .ms-btn {
   font: inherit;
@@ -215,7 +214,6 @@ html[data-theme="dark"] .icon-btn[aria-pressed="true"] { color: #06211f; }
 .check { display: flex; align-items: center; gap: .35rem; font-size: .85rem; cursor: pointer; }
 .check input { accent-color: var(--accent); width: 15px; height: 15px; }
 
-/* ---------- status bar ---------- */
 .statusbar {
   max-width: 1180px;
   margin: 0 auto;
@@ -253,7 +251,6 @@ html[data-theme="dark"] .icon-btn[aria-pressed="true"] { color: #06211f; }
 .chip button:hover { opacity: 1; }
 .statusbar .spacer { margin-left: auto; }
 
-/* ---------- index progress ---------- */
 .indexing {
   position: sticky;
   top: 0;
@@ -293,7 +290,6 @@ html[data-theme="dark"] .icon-btn[aria-pressed="true"] { color: #06211f; }
   padding: .55rem 1.4rem;
 }
 
-/* ---------- list ---------- */
 main { max-width: 1180px; margin: 0 auto; padding: 0 1rem 1rem; }
 
 .qcard {
@@ -434,7 +430,6 @@ body[data-answers="off"] .answer-note { display: none; }
 
 .sentinel { height: 1px; }
 
-/* ---------- selection bar (checkbox picks → CSV/MNR) ---------- */
 .selbar {
   position: fixed;
   left: 50%;
@@ -532,7 +527,6 @@ footer code { font-family: var(--mono); font-size: .95em; }
   .qmeta { margin-left: 0; width: 100%; justify-content: flex-start; }
   .brand h1 { font-size: 1rem; }
 
-  /* selection bar: full-width bottom bar, not a cramped centered pill */
   .selbar {
     left: 0;
     right: 0;
@@ -556,20 +550,36 @@ footer code { font-family: var(--mono); font-size: .95em; }
     font-size: .75rem;
     text-align: center;
   }
-  /* keep the last card clear of the fixed bar */
   main { padding-bottom: 7rem; }
 }
 
-/* ---------- exam-paper PDF layout (hidden on screen; print media shows it) ---------- */
-/* explicit print colors so borders/text survive grayscale printing */
 #paper { display: none; }
+body.pdf-render #paper {
+  display: block !important;
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 194mm;
+  z-index: -9999;
+  opacity: 0.01;
+  pointer-events: none;
+  background: #fff;
+}
+body.pdf-render .paper-doc { width: 194mm; padding: 0; }
 .paper-doc {
   background: #fff;
   color: #111;
-  font-family: var(--font);
-  font-size: 11px;          /* compact: ~14-20 questions fit one A4 page */
+  font-family: "Hind Siliguri", "Noto Sans Bengali", "Kalpurush", "Nirmala UI", "Siyam Rupali", "SolaimanLipi", -apple-system, sans-serif !important;
+  font-size: 11px;
   line-height: 1.45;
   padding: 10mm 8mm;
+  letter-spacing: 0px !important;
+  font-variant-ligatures: normal !important;
+  text-rendering: optimizeLegibility !important;
+}
+.paper-doc, .paper-doc * {
+  letter-spacing: 0px !important;
+  font-variant-ligatures: normal !important;
 }
 .paper-head {
   text-align: center;
@@ -577,10 +587,9 @@ footer code { font-family: var(--mono); font-size: .95em; }
   padding-bottom: 6px;
   margin-bottom: 10px;
 }
-.paper-head h1 { margin: 0 0 3px; font-size: 17px; letter-spacing: .01em; color: #111; }
+.paper-head h1 { margin: 0 0 3px; font-size: 17px; color: #111; letter-spacing: 0px !important; }
 .paper-meta { margin: 0; font-size: 11px; color: #333; }
 .paper-note { margin: 4px 0 0; font-size: 10.5px; color: #444; }
-/* two-column question body per page (header + key stay full width) */
 .paper-cols {
   column-count: 2;
   column-gap: 7mm;
@@ -596,8 +605,6 @@ footer code { font-family: var(--mono); font-size: .95em; }
 .pq-n { font-weight: 700; margin-right: 5px; }
 .pq-body img { max-width: 100%; height: auto; }
 .pq-body p { margin: 0 0 .2rem; }
-/* narrow columns: options sized by length —
-   inline = up to 4 in one line, half = 2 per line, stack = 1 per line */
 .pq-opts { display: flex; flex-wrap: wrap; margin-left: 12px; }
 .pq-opt { display: flex; gap: 5px; margin-bottom: 1px; min-width: 0; }
 .pq-opt p { margin: 0; }
@@ -635,7 +642,6 @@ footer code { font-family: var(--mono); font-size: .95em; }
   color: #555;
 }
 
-/* ---------- Part 2: solution with answer + explanation (~12-14/page) ---------- */
 .pq-solsec {
   page-break-before: always;
   break-before: page;
@@ -648,7 +654,6 @@ footer code { font-family: var(--mono); font-size: .95em; }
   font-size: 15px;
   color: #111;
 }
-/* solutions also flow in 2 columns per page */
 .sol-cols {
   column-count: 2;
   column-gap: 7mm;
@@ -670,12 +675,9 @@ footer code { font-family: var(--mono); font-size: .95em; }
 .psol img { max-width: 120px; height: auto; }
 
 @media print {
-  /* normal app print: hide UI chrome */
   .topbar, .filters, .statusbar, footer, .loadmore, .modal-back, .selbar, .qsel { display: none !important; }
   body { background: #fff; }
   .qcard { break-inside: avoid; box-shadow: none; }
-
-  /* exam-paper mode (body.printing): show ONLY the paper */
   @page { size: A4; margin: 10mm 9mm; }
   body.printing { background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   body.printing > *:not(#paper) { display: none !important; }
@@ -687,6 +689,5 @@ footer code { font-family: var(--mono); font-size: .95em; }
     background: #fff;
     color: #111;
   }
-  /* @page already provides the margins */
   body.printing .paper-doc { padding: 0; }
 }

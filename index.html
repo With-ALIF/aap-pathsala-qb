@@ -70,9 +70,16 @@
     </div>
   </div>
 
-  <div class="field">
-    <label for="fC">অধ্যায়</label>
-    <select id="fC"><option value="">সব</option></select>
+  <div class="field ms-field" id="msC">
+    <label for="fCBtn">অধ্যায়</label>
+    <button type="button" class="ms-btn" id="fCBtn" aria-haspopup="true" aria-expanded="false">সব</button>
+    <div class="ms-pop" id="fCPop" hidden>
+      <div class="ms-head">
+        <span id="fCCount"></span>
+        <button type="button" class="ms-clear" id="fCClear">সব মুছুন</button>
+      </div>
+      <div class="ms-list" id="fCList" role="group" aria-label="অধ্যায়"></div>
+    </div>
   </div>
 
   <div class="field">
@@ -134,7 +141,7 @@
 
 <div class="selbar" id="selBar" hidden>
   <span class="selbar-count" id="selCount"></span>
-  <button class="icon-btn primary" id="selPdf" title="নির্বাচিত প্রশ্ন দিয়ে পরীক্ষাপত্র — আগে শিরোনাম/বিষয়/তারিখ দিন, তারপর Save as PDF">PDF নামান</button>
+  <button class="icon-btn primary" id="selPdf" title="নির্বাচিত প্রশ্ন দিয়ে পরীক্ষাপত্র — শিরোনাম/বিষয়/তারিখ দিয়ে এক ক্লিকে PDF নামান">PDF নামান</button>
   <button class="icon-btn" id="selCsv" title="নির্বাচিত প্রশ্ন CSV ফাইলে নামান">CSV</button>
   <button class="icon-btn mnr" id="selMnr" title="নির্বাচিত প্রশ্ন MNR ফরম্যাটে নামান">MNR</button>
   <button class="icon-btn" id="selClear" title="সব নির্বাচন মুছে দিন">নির্বাচন মুছুন</button>
@@ -189,7 +196,7 @@
     <h3 id="pdfHead">পরীক্ষাপত্র তৈরি (PDF)</h3>
     <p class="modal-hint">
       হেডারের লেখাগুলো নিজে বসান — ছাড়া শিরোনাম খালি রাখলে ডিফল্ট বসবে।
-      শেষে প্রিন্ট প্রিভিউ খুলবে, সেখানে <code>Save as PDF</code> বেছে নিন।
+      বোতামে ক্লিক করলেই <code>PDF</code> ফাইল সরাসরি নামবে (কোনো প্রিন্ট প্রিভিউ খুলবে না)।
       <span id="pdfAvail"></span>
     </p>
     <div class="pdf-group">
@@ -200,15 +207,18 @@
       <label class="modal-label" for="pdfSubj">বিষয়</label>
       <input type="text" id="pdfSubj" placeholder="পদার্থবিজ্ঞান ১ম পত্র, উচ্চতর গণিত ১ম পত্র" autocomplete="off">
     </div>
-    <div class="range-row pdf-group">
-      <div class="range-cell">
-        <label class="modal-label" for="pdfDate">তারিখ</label>
-        <input type="date" id="pdfDate">
-      </div>
-      <div class="range-cell">
-        <label class="modal-label" for="pdfCount">মোট প্রশ্ন</label>
-        <input type="text" id="pdfCount" readonly tabindex="-1" aria-readonly="true">
-      </div>
+    <div class="pdf-group">
+      <label class="modal-label" for="pdfTime">সময়</label>
+      <input type="text" id="pdfTime" placeholder="৬০ মিনিট, 1 ঘণ্টা, 90 min" autocomplete="off" spellcheck="false">
+      <p class="modal-sub" id="pdfTimeHint"></p>
+    </div>
+    <div class="pdf-group">
+      <label class="modal-label" for="pdfDate">তারিখ</label>
+      <input type="date" id="pdfDate">
+    </div>
+    <div class="pdf-group">
+      <label class="modal-label" for="pdfCount">মোট প্রশ্ন</label>
+      <input type="text" id="pdfCount" readonly tabindex="-1" aria-readonly="true">
     </div>
     <div class="modal-actions">
       <button class="icon-btn primary" id="pdfGo">PDF নামান</button>
@@ -220,6 +230,7 @@
 
 <div id="paper" aria-hidden="true"></div>
 
+<script src="vendor/html2pdf.bundle.min.js"></script>
 <script src="shards.js"></script>
 <script src="manifest.js"></script>
 <script src="app.js"></script>
