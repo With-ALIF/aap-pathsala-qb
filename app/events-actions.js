@@ -123,20 +123,10 @@
     var selPdf = window.$('selPdf') || window.$('selPdfBtn');
     if (selPdf) selPdf.addEventListener('click', window.openPdfModal);
     var selClear = window.$('selClear') || window.$('selClearBtn');
-    if (selClear) {
-      selClear.addEventListener('click', function () {
-        window.selMap = Object.create(null);
-        window.selOrder = [];
-        window.saveSel();
-        window.updateSelBar();
-        var selNodes = window.$('list').querySelectorAll('.qcard.selected, .q-card.selected');
-        for (var si = 0; si < selNodes.length; si++) {
-          selNodes[si].classList.remove('selected');
-          var chk = selNodes[si].querySelector('.qsel, .q-sel');
-          if (chk) chk.checked = false;
-        }
-      });
-    }
+    if (selClear) selClear.addEventListener('click', window.clearAllSel);
+    if (window.$('selView')) window.$('selView').addEventListener('click', window.openSelTab);
+    if (window.$('tabList')) window.$('tabList').addEventListener('click', function () { window.setTab('list'); });
+    if (window.$('tabSel')) window.$('tabSel').addEventListener('click', function () { window.setTab('sel'); });
     if (window.$('pdfCancel')) window.$('pdfCancel').addEventListener('click', window.closePdf);
     if (window.$('pdfModal')) {
       window.$('pdfModal').addEventListener('click', function (e) {

@@ -35,6 +35,7 @@
           var open = !pop.hidden;
           pop.hidden = open;
           btn.setAttribute('aria-expanded', String(!open));
+          if (!open) window.clampPop(pop);
         });
         document.addEventListener('click', function (e) {
           if (!pop.hidden && field && !field.contains(e.target)) {

@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="vendor/katex/katex.min.css">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body data-answers="on">
@@ -123,7 +124,6 @@
     <label>অতিরিক্ত</label>
     <div class="checkrow">
       <label class="check"><input type="checkbox" id="fE"> ব্যাখ্যা আছে</label>
-      <label class="check"><input type="checkbox" id="fImg"> ছবি আছে</label>
     </div>
   </div>
 </section>
@@ -135,12 +135,21 @@
   <span id="shownNote"></span>
 </div>
 
+<div class="tabs" id="tabs" role="tablist" aria-label="প্রশ্নের তালিকা">
+  <button type="button" class="tab on" id="tabList" role="tab" aria-selected="true" aria-controls="list">সব প্রশ্ন</button>
+  <button type="button" class="tab" id="tabSel" role="tab" aria-selected="false" aria-controls="selPane">
+    নির্বাচিত <span class="tab-count" id="tabSelCount">0</span>
+  </button>
+</div>
+
 <main id="list" aria-live="polite"></main>
+<section id="selPane" role="tabpanel" aria-label="নির্বাচিত প্রশ্ন" hidden></section>
 <div class="sentinel" id="sentinel"></div>
 <button class="icon-btn loadmore" id="moreBtn" hidden>আরও দেখান</button>
 
 <div class="selbar" id="selBar" hidden>
   <span class="selbar-count" id="selCount"></span>
+  <button class="icon-btn" id="selView" title="নির্বাচিত প্রশ্নগুলো আলাদা ট্যাবে দেখুন">নির্বাচিত দেখুন</button>
   <button class="icon-btn primary" id="selPdf" title="নির্বাচিত প্রশ্ন দিয়ে পরীক্ষাপত্র — শিরোনাম/বিষয়/তারিখ দিয়ে এক ক্লিকে PDF নামান">PDF নামান</button>
   <button class="icon-btn" id="selCsv" title="নির্বাচিত প্রশ্ন CSV ফাইলে নামান">CSV</button>
   <button class="icon-btn mnr" id="selMnr" title="নির্বাচিত প্রশ্ন MNR ফরম্যাটে নামান">MNR</button>
@@ -231,6 +240,7 @@
 <div id="paper" aria-hidden="true"></div>
 
 <script src="vendor/html2pdf.bundle.min.js"></script>
+<script src="vendor/katex/katex.min.js"></script>
 <script src="shards.js"></script>
 <script src="manifest.js"></script>
 <script src="app.js"></script>

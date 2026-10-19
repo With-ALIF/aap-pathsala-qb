@@ -41,6 +41,7 @@
     }
     var selN = window.$('fN');
     if (selN) selN.value = window.state.n || '';
+    if (window.syncDropdowns) window.syncDropdowns();
   };
   window.buildSelects = function () {
     window.refreshSelects(null);

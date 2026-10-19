@@ -19,6 +19,7 @@
     window.readURL();
     window.writeControls();
     window.buildSelects();
+    if (window.initSelectDropdowns) window.initSelectDropdowns();
     window.bindEvents();
     window.$('indexing').hidden = false;
     var loadedCount = 0;

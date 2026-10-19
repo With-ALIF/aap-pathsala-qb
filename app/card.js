@@ -44,8 +44,9 @@
       body.innerHTML = full.q;
       window.lazyImgs(body);
     } else {
-      body.textContent = window.plain(idx.t || idx.q);
+      body.textContent = window.textOf(idx.t || idx.q);
     }
+    window.enhanceMath(body);
     c.appendChild(body);
     var ul = window.el('ul', 'opts');
     var opts = (full && full.o) || [];
@@ -72,6 +73,7 @@
         li.appendChild(val);
         ul.appendChild(li);
       }
+      window.enhanceMath(ul);
       c.appendChild(ul);
       var ans = window.el('div', 'answer-note');
       ans.appendChild(window.el('span', null, 'উত্তর:'));
@@ -88,6 +90,7 @@
       } else {
         eb.textContent = full.et;
       }
+      window.enhanceMath(eb);
       ex.appendChild(eb);
       c.appendChild(ex);
     }
@@ -109,3 +112,4 @@
     window.flashNote.t = setTimeout(function () { window.updateStatus(); }, 3000);
   };
 })();
+

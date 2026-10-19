@@ -41,10 +41,15 @@
   };
   window.writeControls = function () {
     if (window.$('q')) window.$('q').value = window.state.q;
+    Object.keys(window.FACET_ID || {}).forEach(function (facet) {
+      var sel = window.$(window.FACET_ID[facet]);
+      if (sel && window.state[facet] !== undefined) sel.value = window.state[facet] || '';
+    });
     if (window.$('fN')) window.$('fN').value = window.state.n;
     if (window.$('fSort')) window.$('fSort').value = window.state.sort;
     if (window.$('fE')) window.$('fE').checked = window.state.e;
     if (window.$('fImg')) window.$('fImg').checked = window.state.img;
+    if (window.syncDropdowns) window.syncDropdowns();
   };
   window.reset = function () {
     Object.keys(window.state).forEach(function (k) {

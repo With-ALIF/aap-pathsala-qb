@@ -43,6 +43,7 @@
   window.state = { q: '', db: '', un: '', y: '', s: [], c: [], k: '', ty: '', n: '', p: '', sort: 'default', e: false, img: false, answers: true };
   window.results = [];
   window.shown = 0;
+window.tab = 'list';
   window.indexReady = false;
   window.loading = false;
   window.noteOverride = null;
