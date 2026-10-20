@@ -64,7 +64,11 @@
     image: { type: 'jpeg', quality: 0.95 },
     enableLinks: false,
     html2canvas: {
-      scale: 1,
+      // 2x = ~192 DPI for a 210mm page. At scale 1 the page was only ~96 DPI,
+      // so the question/solution images looked soft after being squeezed into
+      // the PDF. The canvas grows 2x in each direction, which is still far
+      // below the browser limits per A4 page.
+      scale: 2,
       useCORS: true,
       // never taint the canvas: a single cross-origin image without CORS
       // headers used to poison getImageData()/toDataURL() for every page after
