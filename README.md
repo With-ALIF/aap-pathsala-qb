@@ -397,13 +397,13 @@ Shard availability is the only thing that can break a deploy. If an index shard 
 | Images | 136,146 `<img>` tags, all `loading="lazy" decoding="async"` |
 | Initial index load | 83 MB across 43 shards, sequential, with a progress bar and one retry each |
 
-**Not fully offline.** Despite the "অফলাইন আর্কাইভ" framing, 135,994 of the 136,146 images are hotlinked from `testmozusercontent.com`, with the remainder spread across S3, Wikimedia, Wikipedia, and ~28 one-off hosts. The *interface* and *text* are fully local; question images require network access. The one external non-image dependency is the Google Fonts stylesheet for Hind Siliguri (400/500/600/700), with a fallback stack of `"Noto Sans Bengali", "Segoe UI", system-ui`.
+**Not fully offline.** Despite the "অফলাইন আর্কাইভ" framing, 135,994 of the 136,146 images are hotlinked from `testmozusercontent.com`, with the remainder spread across S3, Wikimedia, Wikipedia, and ~28 one-off hosts. The *interface* and *text* are fully local; question images require network access. Fonts are fully local too: `fonts/solaiman-lipi-{regular,semibold,bold}.woff2` (SolaimanLipi 400/600/700, Bangla + Latin) are declared with `@font-face`, so no Google Fonts request is made.
 
 ---
 
 ## Privacy & Storage
 
-No network calls of any kind — no `fetch`, no `XMLHttpRequest`, no `WebSocket`, no analytics, no telemetry, no error reporting. No accounts, no auth, no cookies. The only external requests are the font stylesheet and the images embedded in question HTML.
+No network calls of any kind — no `fetch`, no `XMLHttpRequest`, no `WebSocket`, no analytics, no telemetry, no error reporting. No accounts, no auth, no cookies. The only external requests are the images embedded in question HTML.
 
 Four `localStorage` keys, all optional and all `try`/`catch`-wrapped:
 

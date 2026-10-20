@@ -50,17 +50,33 @@ window.stripHTML = function (s) {
     window.downloadBlob(blob, name);
   };
   window.downloadBlob = function (blob, name) {
-    if (typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') return false;
+    if (!blob) return false;
     try {
-      var url = URL.createObjectURL(blob);
+      // legacy Edge/IE
+      if (window.navigator && typeof window.navigator.msSaveOrOpenBlob === 'function') {
+        window.navigator.msSaveOrOpenBlob(blob, name);
+        return true;
+      }
+    } catch (e) {}
+    if (typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') return false;
+    var url = '';
+    try {
+      url = URL.createObjectURL(blob);
       var a = document.createElement('a');
       a.href = url;
       a.download = name;
+      a.rel = 'noopener';
+      a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
-      a.remove();
-      setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) {} }, 30000);
+      // keep the anchor and the object URL alive briefly: some browsers read
+      // the blob after the click event has already returned
+      setTimeout(function () { try { a.remove(); } catch (e) {} }, 1000);
+      setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) {} }, 60000);
       return true;
-    } catch (e) { return false; }
+    } catch (e) {
+      if (url) { try { URL.revokeObjectURL(url); } catch (e2) {} }
+      return false;
+    }
   };
 })();

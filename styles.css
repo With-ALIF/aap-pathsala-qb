@@ -1,4 +1,24 @@
-@import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap');
+@font-face {
+  font-family: "SolaimanLipi";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/solaiman-lipi-regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "SolaimanLipi";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("fonts/solaiman-lipi-semibold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "SolaimanLipi";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/solaiman-lipi-bold.woff2") format("woff2");
+}
 
 :root {
   --bg: #f6f7f9;
@@ -15,7 +35,7 @@
   --wrong-soft: #fee2e2;
   --radius: 10px;
   --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
-  --font: "Hind Siliguri", "Noto Sans Bengali", "Kalpurush", "Nirmala UI", "Siyam Rupali", "SolaimanLipi", "Segoe UI", -apple-system, sans-serif;
+  --font: "SolaimanLipi", "Noto Sans Bengali", "Kalpurush", "Nirmala UI", "Siyam Rupali", "Segoe UI", -apple-system, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
@@ -622,6 +642,14 @@ footer code { font-family: var(--mono); font-size: .95em; }
 .modal-note { margin: .6rem 0 0; color: var(--muted); font-size: .82rem; min-height: 1em; }
 .modal-actions { display: flex; gap: .5rem; margin-top: .9rem; }
 .modal-actions .icon-btn { flex: 1; }
+.modal-actions a.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  text-decoration: none;
+}
+.pdf-save-name { color: var(--text); font-weight: 600; word-break: break-all; }
 .pdf-group { margin-top: .7rem; }
 .pdf-group:first-of-type { margin-top: 0; }
 .icon-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -630,6 +658,7 @@ footer code { font-family: var(--mono); font-size: .95em; }
 .icon-btn.mnr:hover { filter: brightness(1.05); }
 .icon-btn.on { outline: 2px solid var(--accent); outline-offset: 2px; }
 .icon-btn:disabled { opacity: .6; cursor: progress; }
+.icon-btn[aria-disabled="true"] { opacity: .5; pointer-events: none; }
 
 @media (max-width: 640px) {
   .qhead { flex-wrap: wrap; }
@@ -678,7 +707,7 @@ body.pdf-render .paper-doc { padding: 0; }
 .paper-doc {
   background: #fff;
   color: #111;
-  font-family: "Hind Siliguri", "Noto Sans Bengali", "Kalpurush", "Nirmala UI", "Siyam Rupali", "SolaimanLipi", -apple-system, sans-serif !important;
+  font-family: "SolaimanLipi", "Noto Sans Bengali", "Kalpurush", "Nirmala UI", "Siyam Rupali", -apple-system, sans-serif !important;
   font-size: 11px;
   line-height: 1.45;
   padding: 0;
@@ -697,6 +726,21 @@ body.pdf-render .paper-doc { padding: 0; }
   box-sizing: border-box;
   background: #fff;
   overflow: hidden;
+  /* html2pdf clones each .pdf-page into its own container, outside .paper-doc,
+     so the typography has to live on the page itself. Without this the clone
+     falls back to the body font size and the content grows ~1.5x, which the
+     A4 crop then chops off. */
+  color: #111;
+  font-family: "SolaimanLipi", "Noto Sans Bengali", "Kalpurush", "Nirmala UI", "Siyam Rupali", -apple-system, sans-serif !important;
+  font-size: 11px;
+  line-height: 1.45;
+  letter-spacing: 0px !important;
+  font-variant-ligatures: normal !important;
+  text-rendering: optimizeLegibility !important;
+}
+.pdf-page, .pdf-page * {
+  letter-spacing: 0px !important;
+  font-variant-ligatures: normal !important;
 }
 .pdf-cols { display: flex; gap: 12mm; }
 .pdf-col { width: 91mm; min-width: 0; }

@@ -13,8 +13,8 @@
     return s.replace(/\\/g, '\\textbackslash{}')
       .replace(/([&%$#_{}^])/g, '\\$1')
       .replace(/~/g, '\\sim ')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+      .replace(/</g, '\\lt ')
+      .replace(/>/g, '\\gt ');
   }
 
   function readGroup(s, i) {
@@ -63,7 +63,15 @@
       .replace(/\$/g, '\\$').replace(/~/g, '\\sim');
   }
 
-  var HAS = /\[\s*[(\[][^)\]]{1,60}[)\]]\s*,\s*[(\[][^)\]]{1,60}[)\]]|\babs\s*\(|[|∣]\s*\([^)]{1,80}\)\s*,|sqrt\s*\(|\^|[A-Za-z0-9)]\s_|\bpm(?![a-zA-Z])|\bint(?![a-zA-Z])|class="mathy"|\b(?:alpha|beta|gamma|delta|theta|lambda|pi|omega|sigma|mu|rho|eta|tau|phi|psi|nu|kappa|zeta)\b|->/;
+  // Convert a fragment that sits inside another construct (radical, script,
+  // matrix cell) so nested math such as sqrt(2+sqrt(2)) or m^2 is handled
+  // recursively instead of being escaped into literal text.
+  function texOf(t) {
+    var tex = window.mathLatex(tidy(String(t)), true);
+    return tex == null ? escLatex(t) : tex;
+  }
+
+  var HAS = /\[\s*[(\[][^)\]]{1,60}[)\]]\s*,\s*[(\[][^)\]]{1,60}[)\]]|\babs\s*\(|[|∣]\s*\([^)]{1,80}\)\s*,|sqrt\s*[(\[]|\broot\s*[2-9]\s*\(|[√∛∜]|\^|[A-Za-z0-9)]\s_|\bpm(?![a-zA-Z])|\bint(?![a-zA-Z])|class="mathy"|\b(?:alpha|beta|gamma|delta|theta|lambda|pi|omega|sigma|mu|rho|eta|tau|phi|psi|nu|kappa|zeta)\b|->/;
 
   function splitTop(s) {
     var out = [], depth = 0, cur = '';
@@ -126,7 +134,7 @@
   function matrixLatex(rows, det) {
     var body = rows.map(function (cells) {
       return cells.map(function (c) {
-        return window.mathLatex(c, true) || escLatex(c);
+        return texOf(c);
       }).join(' & ');
     }).join(' \\\\ ');
     var env = det ? 'vmatrix' : 'bmatrix';
@@ -134,7 +142,12 @@
   }
 
   window.mathNeeds = function (s) {
-    return !!s && HAS.test(s);
+    if (!s || !HAS.test(s)) return false;
+    // A bare √ inside a Bengali sentence ("প্রতিসরাঙ্ক √2 হলে ...") is part of
+    // the prose. Converting the whole node to KaTeX would drop every word
+    // space, so only treat radicals as math when the node is a formula.
+    if (/[ঀ-৿]/.test(s) && /[√∛∜]/.test(s) && !/sqrt\s*[(\[]|\broot\s*[2-9]\s*\(|\^|_/.test(s)) return false;
+    return true;
   };
   window.mathForced = function (el) {
     if (!el || !el.classList) return false;
@@ -144,7 +157,7 @@
   window.mathLatex = function (s, force) {
     if (!force && !HAS.test(s)) return null;
     var out = '', i = 0, any = false;
-    var src = String(s);
+    var src = String(s).replace(/[−–]/g, '-').replace(/\u00a0/g, ' ');
 
     function take(tex, len) {
       out += tex;
@@ -169,14 +182,57 @@
         var gi = i + mSqrt[0].length - 1;
         var g = readGroup(src, gi);
         if (g) {
-          take('\\sqrt{' + escLatex(g.inner) + '}', g.end - i);
+          take('\\sqrt{' + texOf(g.inner) + '}', g.end - i);
+          continue;
+        }
+        // Unclosed sqrt( in the source: treat everything up to a trailing dx
+        // (or the end of the formula) as the radicand instead of printing the
+        // literal word "sqrt".
+        var tail = src.slice(gi + 1);
+        var mDx = /\s+d\s*x\b/i.exec(tail);
+        var inner = (mDx ? tail.slice(0, mDx.index) : tail).replace(/\s+$/, '');
+        if (inner) {
+          take('\\sqrt{' + texOf(inner) + '}', gi + 1 + inner.length - i);
           continue;
         }
       }
 
-       var mSqrtBare = /^sqrt\s*([0-9]+|[A-Za-z])/.exec(rest);
+       var mSqrtBare = /^sqrt\s*([-+]?\s*[0-9]+(?:\.[0-9]+)?|[-+]?\s*[A-Za-z])/.exec(rest);
       if (mSqrtBare) {
-        take('\\sqrt{' + escLatex(mSqrtBare[1]) + '}', mSqrtBare[0].length);
+        var bareRad = mSqrtBare[1].replace(/\s+/g, '');
+        take('\\sqrt{' + texOf(bareRad) + '}', mSqrtBare[0].length);
+        continue;
+      }
+
+      var mRootN = /^root\s*([2-9])\s*\(/.exec(rest);
+      if (mRootN) {
+        var gr = readGroup(src, i + mRootN[0].length - 1);
+        if (gr) {
+          take('\\sqrt[' + mRootN[1] + ']{' + texOf(gr.inner) + '}', gr.end - i);
+          continue;
+        }
+      }
+
+      var radCh = src.charAt(i);
+      if (radCh === '√' || radCh === '∛' || radCh === '∜') {
+        var radIdx = radCh === '∛' ? '3' : radCh === '∜' ? '4' : '';
+        var radOpen = radCh === '∛' ? '\\sqrt[3]' : radCh === '∜' ? '\\sqrt[4]' : '\\sqrt';
+        var rj = i + 1;
+        while (src.charAt(rj) === ' ') rj++;
+        var rch = src.charAt(rj);
+        if (rch === '(' || rch === '[' || rch === '{') {
+          var grp = readGroup(src, rj);
+          if (grp) {
+            take(radOpen + '{' + texOf(grp.inner) + '}', grp.end - i);
+            continue;
+          }
+        }
+        var mRadTerm = /^[√∛∜]\s*([-]?[0-9]+(?:\.[0-9]+)?|[-]?[A-Za-z])/.exec(rest);
+        if (mRadTerm) {
+          take(radOpen + '{' + texOf(mRadTerm[1]) + '}', mRadTerm[0].length);
+          continue;
+        }
+        take(radOpen + '{}', 1);
         continue;
       }
       var mPm = /^pm(?![a-zA-Z])/.exec(rest);
@@ -204,7 +260,7 @@
         var mark = rest.charAt(0);
         var bd4 = readBody(src, i + 1);
         if (bd4) {
-          take(mark === '_' ? '_{' + escLatex(bd4.text) + '}' : '^{' + escLatex(bd4.text) + '}', bd4.next - i);
+          take(mark === '_' ? '_{' + texOf(bd4.text) + '}' : '^{' + texOf(bd4.text) + '}', bd4.next - i);
           continue;
         }
       }
@@ -218,7 +274,7 @@
             var open = findOpen(src, i);
             if (open >= 0) base = src.slice(open, i + 1);
           }
-          take(escLatex(base) + '^{' + escLatex(bd.text) + '}', bd.next - i);
+          take(escLatex(base) + '^{' + texOf(bd.text) + '}', bd.next - i);
           continue;
         }
       }
@@ -232,7 +288,7 @@
             var op2 = findOpen(src, i);
             if (op2 >= 0) b2 = src.slice(op2, i + 1);
           }
-          take(escLatex(b2) + '_{' + escLatex(bd2.text) + '}', bd2.next - i);
+          take(escLatex(b2) + '_{' + texOf(bd2.text) + '}', bd2.next - i);
           continue;
         }
       }
@@ -240,6 +296,13 @@
       var mFn = /^(cosec|sinh|cosh|tanh|sin|cos|tan|cot|sec|ln|log)(?![a-zA-Z])/.exec(rest);
       if (mFn) {
         take('\\' + mFn[1], mFn[1].length);
+        continue;
+      }
+
+      // "vecA" / "vecB" is the dataset's vector notation.
+      var mVec = /^vec\s*([A-Za-z])(?![A-Za-z])/.exec(rest);
+      if (mVec) {
+        take('\\vec{' + mVec[1] + '}', mVec[0].length);
         continue;
       }
 
@@ -293,6 +356,10 @@
         var rendered = window.katex.renderToString(tex, {
           throwOnError: false, displayMode: false, output: 'html', strict: 'ignore'
         });
+        // KaTeX reports parse errors as .katex-error carrying the raw TeX.
+        // Injecting that turns the next pass into double-escaped garbage, so
+        // keep the original text instead.
+        if (rendered.indexOf('katex-error') >= 0) { out += rest; break; }
         out += rendered;
       } catch (e) {
         out += rest;
@@ -314,15 +381,53 @@
     }
   };
 
+  // <sup>3</sup>√x  ->  \sqrt[3]{x}. A numeric superscript glued to a radical
+  // is a root index, not an exponent.
+  function mergeRadicalIndex(root) {
+    var sups = root.querySelectorAll('sup');
+    for (var i = sups.length - 1; i >= 0; i--) {
+      var sup = sups[i];
+      if (!sup.parentNode) continue;
+      var idx = (sup.textContent || '').trim();
+      if (!/^(?:[2-9]|1[0-9])$/.test(idx)) continue;
+      var next = sup.nextSibling;
+      if (!next || next.nodeType !== 3) continue;
+      var data = next.data;
+      var mRad = /^(\s*)[√∛∜]\s*/.exec(data);
+      if (!mRad) continue;
+      var rest = data.slice(mRad[0].length);
+      var operand = '', consumed = 0;
+      if (rest.charAt(0) === '(' || rest.charAt(0) === '[' || rest.charAt(0) === '{') {
+        var g = readGroup(rest, 0);
+        if (!g) continue;
+        operand = g.inner;
+        consumed = g.end;
+      } else {
+        var mOp = /^(?:[-−–]?[0-9]+(?:\.[0-9]+)?|[A-Za-z])[^\s,;=<>]*/.exec(rest);
+        if (!mOp) continue;
+        operand = mOp[0];
+        consumed = mOp[0].length;
+      }
+      var html = window.katexInline('\\sqrt[' + idx + ']{' + texOf(operand) + '}');
+      if (html == null) continue;
+      var span = document.createElement('span');
+      span.className = 'math';
+      span.innerHTML = html;
+      sup.parentNode.replaceChild(span, sup);
+      next.data = mRad[1] + rest.slice(consumed);
+    }
+  }
+
   window.enhanceMath = function (root) {
     if (!root || !window.katex) return;
+    mergeRadicalIndex(root);
     var marks = root.querySelectorAll('sup, sub');
     for (var i = marks.length - 1; i >= 0; i--) {
       var el = marks[i];
       if (!el.parentNode) continue;
       var body = (el.textContent || '').trim();
       if (!body) continue;
-      var tex = (el.nodeName === 'SUP' ? '^{' : '_{') + escLatex(body) + '}';
+      var tex = (el.nodeName === 'SUP' ? '^{' : '_{') + texOf(body) + '}';
       var html = window.katexInline(tex);
       if (html == null) continue;
       var span = document.createElement('span');
@@ -344,7 +449,7 @@
           if (p.classList && p.classList.contains('katex')) return NodeFilter.FILTER_REJECT;
           p = p.parentNode;
         }
-        return (window.mathNeeds(n.data) || window.mathForced(p)) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+        return (window.mathNeeds(n.data) || window.mathForced(n.parentNode)) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
       }
     });
     var nodes = [], n;

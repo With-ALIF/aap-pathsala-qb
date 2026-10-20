@@ -70,7 +70,8 @@
           }
         });
         if (closed) return;
-        if (!window.$('csvModal').hidden) window.closeCSV();
+        if (window.$('pdfSaveModal') && !window.$('pdfSaveModal').hidden) window.closePdfSave();
+        else if (!window.$('csvModal').hidden) window.closeCSV();
         else if (!window.$('pdfModal').hidden) window.closePdf();
         else if (window.$('q')) window.$('q').blur();
       }
@@ -134,6 +135,19 @@
       });
     }
     if (window.$('pdfGo')) window.$('pdfGo').addEventListener('click', window.pdfGo);
+    if (window.$('pdfSaveClose')) window.$('pdfSaveClose').addEventListener('click', window.closePdfSave);
+    if (window.$('pdfSaveModal')) {
+      window.$('pdfSaveModal').addEventListener('click', function (e) {
+        if (e.target === window.$('pdfSaveModal')) window.closePdfSave();
+      });
+    }
+    if (window.$('pdfSaveLink')) {
+      window.$('pdfSaveLink').addEventListener('click', function () {
+        if (window.$('pdfSaveNote')) {
+          window.$('pdfSaveNote').textContent = 'ডাউনলোড শুরু হয়েছে — ফাইলটি Downloads ফোল্ডারে দেখুন।';
+        }
+      });
+    }
     if (window.$('pdfTime')) {
       window.$('pdfTime').addEventListener('input', window.updateDurationHint);
       window.$('pdfTime').addEventListener('keydown', function (e) {

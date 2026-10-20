@@ -24,7 +24,7 @@
     var qt = window.el('p', 'pq-q');
     qt.appendChild(window.el('span', 'pq-n', window.bnNum(i + 1) + '.'));
     var qbody = window.el('span', 'pq-body');
-    if (full.q) { qbody.innerHTML = full.q; window.eagerImgs(qbody); } else qbody.textContent = window.textOf(rec.t || rec.q);
+    if (full.q) { qbody.innerHTML = full.q; window.eagerImgs(qbody); window.sizeImgs(qbody); } else qbody.textContent = window.textOf(rec.t || rec.q);
     window.enhanceMath(qbody);
     qt.appendChild(qbody);
     q.appendChild(qt);
@@ -45,7 +45,7 @@
         var row = window.el('div', 'pq-opt');
         row.appendChild(window.el('span', 'pq-key', '(' + letter + ')'));
         var v = window.el('span', 'pq-val');
-        if (o.h) { v.innerHTML = o.h; window.eagerImgs(v); } else v.textContent = o.t || '';
+        if (o.h) { v.innerHTML = o.h; window.eagerImgs(v); window.sizeImgs(v); } else v.textContent = o.t || '';
         window.enhanceMath(v);
         row.appendChild(v);
         boxO.appendChild(row);
@@ -63,7 +63,7 @@
     var qp = window.el('p', 'psol-q');
     qp.appendChild(window.el('span', 'pq-n', window.bnNum(i + 1) + '.'));
     var qb2 = window.el('span', 'pq-body');
-    if (full.q) { qb2.innerHTML = full.q; window.eagerImgs(qb2); } else qb2.textContent = window.textOf(rec.t || rec.q);
+    if (full.q) { qb2.innerHTML = full.q; window.eagerImgs(qb2); window.sizeImgs(qb2); } else qb2.textContent = window.textOf(rec.t || rec.q);
     window.enhanceMath(qb2);
     qp.appendChild(qb2);
     item.appendChild(qp);
@@ -94,6 +94,7 @@
         var eb2 = window.el('span');
         eb2.innerHTML = full.e;
         window.eagerImgs(eb2);
+        window.sizeImgs(eb2);
         window.enhanceMath(eb2);
         ep.appendChild(eb2);
       } else {

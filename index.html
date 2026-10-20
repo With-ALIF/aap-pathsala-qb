@@ -6,9 +6,6 @@
 <title>প্রশ্নব্যাংক — সম্পূর্ণ আর্কাইভ</title>
 <meta name="description" content="Offline question bank archive: 210,000+ questions with faceted filtering and search.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f766e'/%3E%3Ctext x='16' y='23' font-size='19' font-family='sans-serif' font-weight='700' fill='%23fff' text-anchor='middle'%3E%E0%A6%AA%3C/text%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="vendor/katex/katex.min.css">
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -234,6 +231,23 @@
       <button class="icon-btn" id="pdfCancel">বাতিল</button>
     </div>
     <p class="modal-note" id="pdfNote"></p>
+  </div>
+</div>
+
+<div class="modal-back" id="pdfSaveModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pdfSaveHead">
+    <h3 id="pdfSaveHead">PDF তৈরি হয়েছে</h3>
+    <p class="modal-hint" id="pdfSaveHint">
+      ফাইলটি নিজে থেকে না নামলে নিচের বোতামে চাপ দিন। মোবাইলে ফাইলটি নতুন ট্যাবে খুলে গেলে
+      Share → Save to Files / Downloads দিয়ে সংরক্ষণ করুন।
+    </p>
+    <p class="modal-sub pdf-save-name" id="pdfSaveName"></p>
+    <div class="modal-actions">
+      <a class="icon-btn primary" id="pdfSaveLink" download>PDF নামান</a>
+      <a class="icon-btn" id="pdfSaveOpen" target="_blank" rel="noopener">খুলে দেখুন</a>
+      <button class="icon-btn" id="pdfSaveClose" type="button">বন্ধ</button>
+    </div>
+    <p class="modal-note" id="pdfSaveNote"></p>
   </div>
 </div>
 

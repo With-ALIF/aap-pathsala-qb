@@ -66,10 +66,19 @@
     html2canvas: {
       scale: 1,
       useCORS: true,
-      allowTaint: true,
+      // never taint the canvas: a single cross-origin image without CORS
+      // headers used to poison getImageData()/toDataURL() for every page after
+      // the first, which aborted the blob and dropped users into the print
+      // dialog instead of downloading a PDF
+      allowTaint: false,
       logging: false,
       backgroundColor: '#ffffff',
-      imageTimeout: 15000
+      imageTimeout: 15000,
+      // #paper is position:fixed at the viewport top. html2canvas otherwise
+      // adds the window's scroll offset to fixed elements, which shifted every
+      // page down by however far the user had scrolled before exporting.
+      scrollX: 0,
+      scrollY: 0
     },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: [] }
@@ -78,7 +87,7 @@
   function pdfFontsSettled() {
     if (!document.fonts || !document.fonts.ready) return Promise.resolve();
     var jobs = [document.fonts.ready];
-    ['11px "Hind Siliguri"', '600 11px "Hind Siliguri"', '16px "KaTeX_Main"', 'italic 16px "KaTeX_Math"', '16px "KaTeX_AMS"', '16px "KaTeX_Size1"'].forEach(function (f) {
+    ['11px "SolaimanLipi"', '600 11px "SolaimanLipi"', '700 11px "SolaimanLipi"', '16px "KaTeX_Main"', 'italic 16px "KaTeX_Math"', '16px "KaTeX_AMS"', '16px "KaTeX_Size1"'].forEach(function (f) {
       try {
         var p = document.fonts.load(f);
         if (p && p.catch) p.catch(function () {});
@@ -90,8 +99,61 @@
   // rasterize one .pdf-page on its own (~794x1122px canvas — far below the
   // browser canvas-size limits that blanked the old one-shot render)
   function pdfPageCanvas(pageEl) {
-    var w = html2pdf().set(PDF_OPT).from(pageEl);
-    return w.to('canvas').then(function () { return w.prop.canvas; });
+    return pdfSvgToImg(pageEl).then(function () {
+      var w = html2pdf().set(PDF_OPT).from(pageEl);
+      return w.to('canvas').then(function () { return w.prop.canvas; });
+    });
+  }
+
+  // KaTeX draws the stretchy radical (and other tall delimiters) as an inline
+  // <svg width="400em"> that CSS clips down to the radicand width. html2canvas
+  // silently drops that svg, so the PDF kept the overline but lost the √ hook.
+  // Bake each svg into a PNG at its measured size first; the page is otherwise
+  // untouched because the <img> occupies exactly the same box.
+  function pdfSvgToImg(root) {
+    if (!root || !window.XMLSerializer || !document.createElement) return Promise.resolve();
+    var svgs = root.querySelectorAll('.katex svg');
+    if (!svgs.length) return Promise.resolve();
+    var jobs = [];
+    for (var i = 0; i < svgs.length; i++) jobs.push(pdfOneSvg(svgs[i]));
+    return Promise.all(jobs);
+  }
+  function pdfOneSvg(svg) {
+    return new Promise(function (resolve) {
+      var rect = svg.getBoundingClientRect();
+      if (!rect.width || !rect.height) return resolve();
+      var vb = (svg.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
+      var vh = vb.length === 4 && vb[3] ? vb[3] : 0;
+      if (!vh) return resolve();
+      var ratio = rect.width / rect.height;
+      var cropW = vh * ratio;
+      var scale = 4;
+      var cw = Math.max(1, Math.round(rect.width * scale));
+      var ch = Math.max(1, Math.round(rect.height * scale));
+      var txt = '<svg xmlns="http://www.w3.org/2000/svg" width="' + cw + '" height="' + ch +
+        '" viewBox="0 0 ' + cropW + ' ' + vh + '" preserveAspectRatio="none">' + svg.innerHTML + '</svg>';
+      var im = new Image();
+      im.onload = function () {
+        try {
+          var c = document.createElement('canvas');
+          c.width = cw;
+          c.height = ch;
+          var ctx = c.getContext('2d');
+          if (!ctx) return resolve();
+          ctx.drawImage(im, 0, 0, cw, ch);
+          var out = document.createElement('img');
+          out.src = c.toDataURL('image/png');
+          out.setAttribute('width', String(rect.width));
+          out.setAttribute('height', String(rect.height));
+          out.style.width = rect.width + 'px';
+          out.style.height = rect.height + 'px';
+          svg.parentNode.replaceChild(out, svg);
+        } catch (e) {}
+        resolve();
+      };
+      im.onerror = function () { resolve(); };
+      im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(txt);
+    });
   }
   // count sampled non-white pixels; -1 when the canvas is tainted
   function pdfCanvasInk(canvas) {
@@ -107,21 +169,26 @@
     }
   }
   function pdfPageChecked(pageEl, idx, total) {
-    return pdfPageCanvas(pageEl).then(function (canvas) {
-      if (!canvas) throw new Error('পাতা রেন্ডার হয়নি');
-      var ink = pdfCanvasInk(canvas);
-      if (ink === -1 || ink >= PDF_BLANK_INK) return canvas;
-      console.error('[pdf] blank page ' + (idx + 1) + '/' + total + ', retrying (' + canvas.width + 'x' + canvas.height + ' ink=' + ink + ')');
-      return pdfPageCanvas(pageEl).then(function (canvas2) {
-        var ink2 = canvas2 ? pdfCanvasInk(canvas2) : -1;
-        if (!canvas2 || (ink2 !== -1 && ink2 < PDF_BLANK_INK)) {
-          var err = new Error('পাতা ' + window.num(idx + 1) + ' রেন্ডার হয়নি');
-          err.pdfPage = idx + 1;
-          throw err;
+    var attempt = 0;
+    function once() {
+      attempt++;
+      return pdfPageCanvas(pageEl).then(function (canvas) {
+        if (!canvas) throw new Error('পাতা রেন্ডার হয়নি');
+        var ink = pdfCanvasInk(canvas);
+        if (ink === -1 || ink >= PDF_BLANK_INK) return canvas;
+        console.error('[pdf] blank page ' + (idx + 1) + '/' + total + ' (attempt ' + attempt + ', ink=' + ink + ')');
+        if (attempt < 3) {
+          return new Promise(function (res) { setTimeout(res, 150); }).then(once);
         }
-        return canvas2;
+        // three blank renders in a row: ship the page when it clearly has
+        // content rather than failing the whole document into the print dialog
+        if (pageEl.textContent.trim() || pageEl.querySelector('img, table')) return canvas;
+        var err = new Error('পাতা ' + window.num(idx + 1) + ' রেন্ডার হয়নি');
+        err.pdfPage = idx + 1;
+        throw err;
       });
-    });
+    }
+    return once();
   }
   // top-aligned pad/crop to the A4 ratio so each page maps 1:1 onto a sheet
   function pdfFitCanvas(src) {
@@ -160,6 +227,124 @@
       return master.output('blob');
     });
   }
+  // ---------------- saving ----------------
+  // a blob download started from a promise chain is dropped by iOS Safari and
+  // most in-app browsers (WhatsApp / Facebook / Instagram), so those users get
+  // a dialog with a real link they tap themselves
+  function pdfNeedsManualTap() {
+    var ua = navigator.userAgent || '';
+    if (/iPhone|iPad|iPod/i.test(ua)) return true;
+    if (/FBAN|FBAV|FB_IAB|Instagram|Line\/|WhatsApp|MicroMessenger|Twitter/i.test(ua)) return true;
+    return /Android/i.test(ua) && /\bwv\b/i.test(ua);
+  }
+  function pdfSizeLabel(bytes) {
+    var n = Number(bytes) || 0;
+    if (!n) return '';
+    if (n >= 1048576) return (n / 1048576).toFixed(1) + ' MB';
+    return Math.max(1, Math.round(n / 1024)) + ' KB';
+  }
+  var saveUrl = '';
+  function revokeSaveUrl() {
+    var u = saveUrl;
+    saveUrl = '';
+    if (u) { try { URL.revokeObjectURL(u); } catch (e) {} }
+  }
+  function scheduleRevoke(url) {
+    setTimeout(function () {
+      // a newer document has since replaced this one
+      if (saveUrl === url) revokeSaveUrl();
+    }, 60000);
+  }
+  window.closePdfSave = function () {
+    var modal = window.$('pdfSaveModal');
+    if (modal) modal.hidden = true;
+    // the browser may still be reading the blob, so free it later
+    if (saveUrl) scheduleRevoke(saveUrl);
+  };
+  window.openPdfSave = function (blob, name) {
+    revokeSaveUrl();
+    var url = '';
+    try { url = URL.createObjectURL(blob); } catch (e) { url = ''; }
+    saveUrl = url;
+    var modal = window.$('pdfSaveModal');
+    var link = window.$('pdfSaveLink');
+    var open = window.$('pdfSaveOpen');
+    if (window.$('pdfSaveHead')) window.$('pdfSaveHead').textContent = 'PDF তৈরি হয়েছে';
+    if (link) {
+      link.textContent = 'PDF নামান';
+      if (url) { link.href = url; link.removeAttribute('aria-disabled'); }
+      else { link.removeAttribute('href'); link.setAttribute('aria-disabled', 'true'); }
+      link.setAttribute('download', name);
+    }
+    if (open) {
+      if (url) { open.href = url; open.removeAttribute('aria-disabled'); }
+      else { open.removeAttribute('href'); open.setAttribute('aria-disabled', 'true'); }
+    }
+    if (window.$('pdfSaveName')) {
+      window.$('pdfSaveName').textContent = name + (blob && blob.size ? ' · ' + pdfSizeLabel(blob.size) : '');
+    }
+    if (!modal) {
+      // markup missing (older build): fall back to a plain programmatic save
+      var plain = window.downloadBlob(blob, name);
+      window.flashNote(plain ? 'PDF সরাসরি নামানো হয়েছে' : 'PDF তৈরি হয়েছে, কিন্তু ডাউনলোড শুরু হয়নি');
+      return;
+    }
+    if (!url) {
+      // no Blob URLs at all (very old browser): msSaveOrOpenBlob may still work
+      var legacy = window.downloadBlob(blob, name);
+      if (window.$('pdfSaveHint')) {
+        window.$('pdfSaveHint').textContent = legacy
+          ? 'ফাইলটি সেভ হয়েছে।'
+          : 'এই ব্রাউজারে সরাসরি PDF সেভ সমর্থিত নয় — Ctrl/Cmd + P চেপে “Save as PDF” বেছে নিন।';
+      }
+      if (window.$('pdfSaveNote')) window.$('pdfSaveNote').textContent = '';
+      modal.hidden = false;
+      return;
+    }
+    var auto = false;
+    if (url && !pdfNeedsManualTap()) {
+      try { auto = window.downloadBlob(blob, name); } catch (e) { auto = false; }
+    }
+    if (window.$('pdfSaveHint')) {
+      window.$('pdfSaveHint').textContent = auto
+        ? 'ডাউনলোড শুরু হয়েছে। ফাইলটি না এলে নিচের বোতামে চাপ দিন।'
+        : 'ফাইলটি তৈরি হয়েছে — নিচের বোতামে চাপ দিলেই নামবে। মোবাইলে নতুন ট্যাবে খুলে গেলে Share → Save to Files দিয়ে সেভ করুন।';
+    }
+    if (window.$('pdfSaveNote')) {
+      window.$('pdfSaveNote').textContent = auto
+        ? 'ফাইলটি একবার না নামলে “PDF নামান” বোতামে চাপুন।'
+        : '';
+    }
+    modal.hidden = false;
+    try { if (link) link.focus(); } catch (e) {}
+    window.flashNote(auto ? 'PDF ডাউনলোড শুরু হয়েছে' : 'PDF তৈরি হয়েছে — “PDF নামান” চাপুন');
+  };
+  // direct generation failed: say why instead of silently dumping the user
+  // into a print dialog with no explanation
+  window.openPdfError = function (message) {
+    revokeSaveUrl();
+    var modal = window.$('pdfSaveModal');
+    var link = window.$('pdfSaveLink');
+    var open = window.$('pdfSaveOpen');
+    if (link) {
+      link.removeAttribute('href');
+      link.setAttribute('aria-disabled', 'true');
+      link.textContent = 'PDF নামান';
+    }
+    if (open) {
+      open.removeAttribute('href');
+      open.setAttribute('aria-disabled', 'true');
+    }
+    if (window.$('pdfSaveHead')) window.$('pdfSaveHead').textContent = 'PDF ফাইল তৈরি করা যায়নি';
+    if (window.$('pdfSaveHint')) {
+      window.$('pdfSaveHint').textContent = 'সরাসরি PDF তৈরি করতে সমস্যা হয়েছে — ' +
+        message + '। প্রিন্ট প্রিভিউ থেকে “Save as PDF” বেছে নিলেও ফাইলটি পাওয়া যাবে।';
+    }
+    if (window.$('pdfSaveName')) window.$('pdfSaveName').textContent = '';
+    if (window.$('pdfSaveNote')) window.$('pdfSaveNote').textContent = '';
+    if (modal) modal.hidden = false;
+    else window.flashNote('PDF তৈরি করা যায়নি: ' + message);
+  };
   window.generatePdf = function (rows, meta) {
     if (!rows || !rows.length) {
       window.flashNote('আগে অন্তত একটি প্রশ্ন নির্বাচন করুন');
@@ -200,6 +385,12 @@
         // first fonts.ready — so wait again or glyphs can paint blank
         return pdfFontsSettled();
       }).then(function () {
+        // Re-paginate once every math face is in. The earlier passes measure
+        // against fallback font metrics, so they pack more questions onto a
+        // page than actually fit; when the real glyphs load the columns grow
+        // and the tail gets clipped at the A4 boundary.
+        return buildPass(1500).then(pdfFontsSettled);
+      }).then(function () {
         var baseName = meta.title || 'exam-paper';
         var safe = window.sanitizeName(baseName) || 'exam-paper';
         var filename = safe + '-' + rows.length + 'q-' + window.todayISO() + '.pdf';
@@ -212,13 +403,19 @@
         // one jsPDF doc — one giant multi-page canvas used to hit the browser
         // canvas-size limit and come back silently white
         return pdfPagesToBlob(pages).then(function (blob) {
-          var ok = window.downloadBlob(blob, filename);
-          window.flashNote(ok ? 'PDF সরাসরি নামানো হয়েছে' : 'PDF তৈরি হয়েছে, ডাউনলোড শুরু হয়নি');
+          // the dialog owns the download so it also works where a programmatic
+          // blob click is blocked (iOS, in-app browsers, repeated auto-saves)
+          window.setSelBusy(false);
+          window.openPdfSave(blob, filename);
         });
       });
     }).catch(function (err) {
       console.error('[pdf] generate failed', err);
-      window.flashNote('সরাসরি PDF না নামলে প্রিন্ট ডায়ালগ খোলা হচ্ছে: ' + (err && err.message ? err.message : err));
+      var reason = err && err.message ? err.message : String(err);
+      // explain the failure first (the dialog is hidden from print media), then
+      // keep the print dialog as a last resort while #paper is still mounted
+      try { window.openPdfError(reason); } catch (e2) {}
+      window.flashNote('সরাসরি PDF তৈরি হয়নি — প্রিন্ট ডায়ালগ খোলা হচ্ছে: ' + reason);
       try {
         var oldT = document.title;
         document.title = (meta.title || 'exam-paper') + '-' + rows.length + 'q';
