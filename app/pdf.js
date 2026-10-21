@@ -7,16 +7,122 @@
       return;
     }
     window.$('pdfNote').textContent = '';
-    window.$('pdfCount').value = window.bnNum(rows.length) + 'টি (' + window.num(rows.length) + ')';
-    window.$('pdfSubj').value = window.paperSubjects(rows);
-    var dEl = window.$('pdfDate');
-    if (!dEl.value) dEl.value = window.todayISO();
+    window.$('pdfCount').textContent = window.bnNum(rows.length) + 'টি (' + window.num(rows.length) + ')';
+    // restore the last-used settings so the fields don't have to be retyped
+    // on every export
+    var opts = window.loadPdfOpts();
+    window.applyPdfOpts(opts);
+    window.updateSizeLabels();
+    window.pdfWmImage = window.loadPdfWmImage();
+    window.updateWmImgHint();
+    // one shuffle seed per modal session so preview and download match
+    window.pdfSeed = Math.floor(Math.random() * 1000000000) + 1;
     var tEl = window.$('pdfTime');
     if (tEl && !tEl.value) tEl.value = window.loadLastDuration();
     window.updateDurationHint();
     window.$('pdfAvail').textContent = 'নির্বাচিত ' + window.num(rows.length) + 'টি প্রশ্ন দিয়ে একটি সম্পূর্ণ পরীক্ষাপত্র তৈরি হবে।';
     window.$('pdfModal').hidden = false;
     window.$('pdfTitleIn').focus();
+  };
+  // ---------------- pdf settings (the six input groups) ----------------
+  window.loadPdfOpts = function () {
+    try { return JSON.parse(localStorage.getItem('qb_pdf_opts') || '{}') || {}; } catch (e) { return {}; }
+  };
+  window.applyPdfOpts = function (o) {
+    o = o || {};
+    function setTxt(id, v) {
+      var el = window.$(id);
+      if (el && v != null && v !== '') el.value = String(v);
+    }
+    setTxt('pdfTitleIn', o.title);
+    setTxt('pdfTutor', o.tutor);
+    setTxt('pdfSubj', o.subject);
+    setTxt('pdfMarks', o.marks);
+    setTxt('pdfWm', o.watermark);
+    setTxt('pdfFootL', o.footerL);
+    setTxt('pdfFootR', o.footerR);
+    var ans = window.$('pdfAns');
+    if (ans) ans.value = o.answers === false ? 'no' : 'yes';
+    var setsEl = window.$('pdfSets');
+    if (setsEl) setsEl.checked = !!o.sets;
+    var qEl = window.$('pdfQSize');
+    if (qEl && Number(o.qSize) > 0) qEl.value = String(o.qSize);
+    var hEl = window.$('pdfHSize');
+    if (hEl && Number(o.hSize) > 0) hEl.value = String(o.hSize);
+    var oEl = window.$('pdfWmOp');
+    var trans = Number(o.wmTransparency);
+    if (!(trans > 0) && Number(o.wmOpacity) > 0) trans = Math.round((1 - Number(o.wmOpacity)) * 100);
+    if (oEl && trans > 0) oEl.value = String(trans);
+  };
+  // the optional subtitle/title is persisted with the other options
+  window.savePdfOpts = function () {
+    function v(id) { var el = window.$(id); return el ? String(el.value || '').trim() : ''; }
+    var qEl = window.$('pdfQSize'), hEl = window.$('pdfHSize'), opEl = window.$('pdfWmOp');
+    var ansEl = window.$('pdfAns');
+    var setsEl = window.$('pdfSets');
+    try {
+      localStorage.setItem('qb_pdf_opts', JSON.stringify({
+        title: v('pdfTitleIn'),
+        tutor: v('pdfTutor'),
+        subject: v('pdfSubj'),
+        marks: v('pdfMarks'),
+        sets: !!(setsEl && setsEl.checked),
+        qSize: qEl && Number(qEl.value) > 0 ? Number(qEl.value) : 11,
+        hSize: hEl && Number(hEl.value) > 0 ? Number(hEl.value) : 24,
+        watermark: v('pdfWm'),
+        wmTransparency: opEl && Number(opEl.value) > 0 ? Number(opEl.value) : 90,
+        footerL: v('pdfFootL'),
+        footerR: v('pdfFootR'),
+        answers: !(ansEl && ansEl.value === 'no')
+      }));
+    } catch (e) {}
+  };
+  window.updateSizeLabels = function () {
+    function lbl(outId, valId, suffix) {
+      var out = window.$(outId), el = window.$(valId);
+      if (out && el) out.textContent = window.bnNum(el.value) + suffix;
+    }
+    lbl('pdfQSizeOut', 'pdfQSize', 'px');
+    lbl('pdfHSizeOut', 'pdfHSize', 'px');
+    lbl('pdfWmOpOut', 'pdfWmOp', '%');
+  };
+  // read every input in the modal into the meta object buildPaper consumes;
+  // returns null when a field fails validation (the error is shown in-modal)
+  window.readPdfMeta = function (rows) {
+    function v(id) { var el = window.$(id); return el ? String(el.value || '').trim() : ''; }
+    var tRaw = v('pdfTime');
+    var mins = window.parseDuration(tRaw);
+    if (tRaw && !mins) {
+      window.$('pdfNote').textContent = 'সময়টা বোঝা যায়নি — যেমন "৬০ মিনিট", "1 ঘণ্টা", "90 min" লিখুন।';
+      var tEl = window.$('pdfTime');
+      if (tEl) tEl.focus();
+      return null;
+    }
+    if (mins) window.saveLastDuration(tRaw);
+    var qEl = window.$('pdfQSize'), hEl = window.$('pdfHSize'), opEl = window.$('pdfWmOp');
+    var trans = opEl ? Number(opEl.value) : 90;
+    if (!(trans >= 0 && trans <= 100)) trans = 90;
+    var wmOp = (100 - trans) / 100;
+    if (!(wmOp > 0.01)) wmOp = 0.02;
+    var ansEl = window.$('pdfAns');
+    var setsEl = window.$('pdfSets');
+    return {
+      title: v('pdfTitleIn') || 'নির্বাচিত প্রশ্নের পরীক্ষাপত্র',
+      tutor: v('pdfTutor'),
+      subject: v('pdfSubj'),
+      minutes: mins,
+      marks: v('pdfMarks'),
+      sets: setsEl && setsEl.checked ? 4 : 1,
+      seed: window.pdfSeed || 1,
+      qSize: qEl && Number(qEl.value) > 0 ? Number(qEl.value) : 11,
+      hSize: hEl && Number(hEl.value) > 0 ? Number(hEl.value) : 24,
+      watermark: v('pdfWm'),
+      wmImage: window.pdfWmImage || '',
+      wmOpacity: wmOp,
+      footerL: v('pdfFootL'),
+      footerR: v('pdfFootR'),
+      answers: !(ansEl && ansEl.value === 'no')
+    };
   };
   window.updateDurationHint = function () {
     var hint = window.$('pdfTimeHint');
@@ -35,29 +141,79 @@
   window.saveLastDuration = function (v) {
     try { if (v) localStorage.setItem('qb_pdf_duration', v); } catch (e) {}
   };
+  // ---------------- watermark image (stored as a data URL) ----------------
+  window.loadPdfWmImage = function () {
+    try { return localStorage.getItem('qb_pdf_wmimg') || ''; } catch (e) { return ''; }
+  };
+  window.savePdfWmImage = function (dataUrl) {
+    try {
+      if (dataUrl) localStorage.setItem('qb_pdf_wmimg', dataUrl);
+      else localStorage.removeItem('qb_pdf_wmimg');
+    } catch (e) {}
+  };
+  window.updateWmImgHint = function () {
+    var hint = window.$('pdfWmImgHint');
+    if (!hint) return;
+    hint.textContent = window.pdfWmImage
+      ? 'ছবিটি সব পাতায় ওয়াটারমার্ক হিসেবে বসবে (টেক্সট ওয়াটারমার্কের বদলে)।'
+      : 'ছবি দিলে সব পাতায় ওয়াটারমার্ক হিসেবে বসবে; না দিলে টেক্সট ওয়াটারমার্ক ব্যবহার হবে।';
+  };
   window.closePdf = function () {
     window.$('pdfModal').hidden = true;
   };
   window.pdfGo = function () {
     var rows = window.selRecs();
     if (!rows.length) return;
-    var tEl = window.$('pdfTime');
-    var tRaw = tEl ? String(tEl.value || '').trim() : '';
-    var mins = window.parseDuration(tRaw);
-    if (tRaw && !mins) {
-      window.$('pdfNote').textContent = 'সময়টা বোঝা যায়নি — যেমন "৬০ মিনিট", "1 ঘণ্টা", "90 min" লিখুন।';
-      if (tEl) tEl.focus();
-      return;
-    }
-    if (mins) window.saveLastDuration(tRaw);
-    var meta = {
-      title: (window.$('pdfTitleIn') && window.$('pdfTitleIn').value.trim()) || 'নির্বাচিত প্রশ্নের পরীক্ষাপত্র',
-      subject: (window.$('pdfSubj') && window.$('pdfSubj').value.trim()) || window.paperSubjects(rows),
-      date: window.paperDate(),
-      minutes: mins
-    };
+    var meta = window.readPdfMeta(rows);
+    if (!meta) return;
+    window.savePdfOpts();
     window.closePdf();
     window.generatePdf(rows, meta);
+  };
+  // ---------------- on-screen preview ----------------
+  // builds the exact same pages generatePdf would rasterize (same meta), so
+  // what the user sees here is what lands in the PDF
+  window.pdfPreview = function () {
+    var rows = window.selRecs();
+    if (!rows.length) {
+      window.flashNote('আগে অন্তত একটি প্রশ্ন নির্বাচন করুন');
+      return;
+    }
+    var meta = window.readPdfMeta(rows);
+    if (!meta) return;
+    window.savePdfOpts();
+    window.closePdf();
+    window.buildPdfNode(rows, meta).then(function (node) {
+      var scroll = window.$('pdfPrevScroll');
+      if (!scroll) return;
+      scroll.innerHTML = '';
+      scroll.appendChild(node.cloneNode(true));
+      var head = window.$('pdfPrevHead');
+      if (head) {
+        head.textContent = 'প্রিভিউ — ' + (meta.sets === 4 ? '৪টি সেট (A, B, C, D)' : (meta.answers !== false ? 'উত্তরসহ' : 'উত্তর ছাড়া')) +
+          ' · ' + window.num(rows.length) + 'টি প্রশ্ন';
+      }
+      var pv = window.$('pdfPreview');
+      if (pv) pv.hidden = false;
+      scroll.scrollTop = 0;
+      var c = window.$('pdfPrevClose');
+      if (c) { try { c.focus(); } catch (e) {} }
+      window.flashNote('প্রিভিউ দেখানো হচ্ছে — ভালো লাগলে “PDF নামান” চাপুন');
+    }).catch(function (err) {
+      console.error('[pdf] preview failed', err);
+      window.flashNote('প্রিভিউ তৈরি হয়নি — ' + (err && err.message ? err.message : String(err)));
+    }).then(function () {
+      document.body.classList.remove('pdf-render');
+      window.setSelBusy(false);
+      var container = window.$('paper');
+      if (container) container.innerHTML = '';
+    });
+  };
+  window.closePdfPreview = function () {
+    var pv = window.$('pdfPreview');
+    if (pv) pv.hidden = true;
+    var scroll = window.$('pdfPrevScroll');
+    if (scroll) scroll.innerHTML = '';
   };
   var PDF_OPT = {
     margin: [0, 0, 0, 0],
@@ -349,20 +505,20 @@
     if (modal) modal.hidden = false;
     else window.flashNote('PDF তৈরি করা যায়নি: ' + message);
   };
-  window.generatePdf = function (rows, meta) {
-    if (!rows || !rows.length) {
-      window.flashNote('আগে অন্তত একটি প্রশ্ন নির্বাচন করুন');
-      return;
-    }
+  // shared build pipeline: loads shards, lays out the paginated paper and
+  // resolves with the ready #paper .paper-doc node (fonts + images settled).
+  // Both generatePdf and pdfPreview go through this so the preview always
+  // matches the downloaded file.
+  window.buildPdfNode = function (rows, meta) {
     var needed = window.pendingFor(rows);
     window.setSelBusy(true, 'শার্ড লোড হচ্ছে…');
     window.flashNote('পরীক্ষাপত্রের জন্য শার্ড লোড হচ্ছে…');
     var loadPromise = needed.length ? Promise.all(needed.map(window.loadDat)) : Promise.resolve();
-    loadPromise.then(function () {
+    return loadPromise.then(function () {
       window.setSelBusy(true, 'ছবি লোড হচ্ছে…');
       window.flashNote('পরীক্ষাপত্র প্রস্তুত হচ্ছে…');
       var container = window.$('paper');
-      if (!container) return;
+      if (!container) throw new Error('প্রিন্ট এলাকা পাওয়া যায়নি');
       container.innerHTML = '';
       // the paper has to be laid out before it is built: pagination measures
       // column heights, and a display:none node measures as zero
@@ -395,23 +551,32 @@
         // and the tail gets clipped at the A4 boundary.
         return buildPass(1500).then(pdfFontsSettled);
       }).then(function () {
-        var baseName = meta.title || 'exam-paper';
-        var safe = window.sanitizeName(baseName) || 'exam-paper';
-        var filename = safe + '-' + rows.length + 'q-' + window.todayISO() + '.pdf';
-        window.setSelBusy(true, 'PDF রূপান্তর…');
-        window.flashNote('PDF রূপান্তর হচ্ছে…');
-        if (typeof html2pdf !== 'function') throw new Error('html2pdf লাইব্রেরি অনুপস্থিত');
-        var pages = node.querySelectorAll('.pdf-page');
-        if (!pages.length) throw new Error('পাতা তৈরি হয়নি');
-        // each .pdf-page is rasterized on its own small canvas and glued into
-        // one jsPDF doc — one giant multi-page canvas used to hit the browser
-        // canvas-size limit and come back silently white
-        return pdfPagesToBlob(pages).then(function (blob) {
-          // the dialog owns the download so it also works where a programmatic
-          // blob click is blocked (iOS, in-app browsers, repeated auto-saves)
-          window.setSelBusy(false);
-          window.openPdfSave(blob, filename);
-        });
+        return node;
+      });
+    });
+  };
+  window.generatePdf = function (rows, meta) {
+    if (!rows || !rows.length) {
+      window.flashNote('আগে অন্তত একটি প্রশ্ন নির্বাচন করুন');
+      return;
+    }
+    window.buildPdfNode(rows, meta).then(function (node) {
+      var baseName = meta.title || 'exam-paper';
+      var safe = window.sanitizeName(baseName) || 'exam-paper';
+      var filename = safe + '-' + rows.length + 'q-' + (meta.sets === 4 ? '4sets-' : '') + window.todayISO() + '.pdf';
+      window.setSelBusy(true, 'PDF রূপান্তর…');
+      window.flashNote('PDF রূপান্তর হচ্ছে…');
+      if (typeof html2pdf !== 'function') throw new Error('html2pdf লাইব্রেরি অনুপস্থিত');
+      var pages = node.querySelectorAll('.pdf-page');
+      if (!pages.length) throw new Error('পাতা তৈরি হয়নি');
+      // each .pdf-page is rasterized on its own small canvas and glued into
+      // one jsPDF doc — one giant multi-page canvas used to hit the browser
+      // canvas-size limit and come back silently white
+      return pdfPagesToBlob(pages).then(function (blob) {
+        // the dialog owns the download so it also works where a programmatic
+        // blob click is blocked (iOS, in-app browsers, repeated auto-saves)
+        window.setSelBusy(false);
+        window.openPdfSave(blob, filename);
       });
     }).catch(function (err) {
       console.error('[pdf] generate failed', err);

@@ -201,36 +201,101 @@
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pdfHead">
     <h3 id="pdfHead">পরীক্ষাপত্র তৈরি (PDF)</h3>
     <p class="modal-hint">
-      হেডারের লেখাগুলো নিজে বসান — ছাড়া শিরোনাম খালি রাখলে ডিফল্ট বসবে।
-      বোতামে ক্লিক করলেই <code>PDF</code> ফাইল সরাসরি নামবে (কোনো প্রিন্ট প্রিভিউ খুলবে না)।
+      হেডারের লেখা নিজের মতো বসান — খালি রাখলে ওই অংশ ফাঁকা থাকবে।
       <span id="pdfAvail"></span>
     </p>
     <div class="pdf-group">
-      <label class="modal-label" for="pdfTitleIn">পরীক্ষাপত্রের শিরোনাম</label>
+      <label class="modal-label" for="pdfTitleIn">পরীক্ষার নাম</label>
       <input type="text" id="pdfTitleIn" placeholder="নির্বাচিত প্রশ্নের পরীক্ষাপত্র" autocomplete="off">
     </div>
+    <div class="pdf-two-col">
+      <div class="pdf-group">
+        <label class="modal-label" for="pdfTutor">শিক্ষকের নাম <span class="modal-opt">(ঐচ্ছিক)</span></label>
+        <input type="text" id="pdfTutor" placeholder="Md Jubayer" autocomplete="off">
+      </div>
+      <div class="pdf-group">
+        <label class="modal-label" for="pdfSubj">টাইটেল <span class="modal-opt">(ঐচ্ছিক)</span></label>
+        <input type="text" id="pdfSubj" placeholder="যেমন: রসায়ন সাজেশন" autocomplete="off">
+      </div>
+    </div>
+    <div class="pdf-three-col">
+      <div class="pdf-group">
+        <label class="modal-label" for="pdfMarks">পূর্ণমান</label>
+        <input type="text" id="pdfMarks" placeholder="৮০" autocomplete="off">
+      </div>
+      <div class="pdf-group">
+        <label class="modal-label" for="pdfTime">সময়</label>
+        <input type="text" id="pdfTime" placeholder="৬০ মিনিট" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="pdf-group">
+        <label class="modal-label">মোট প্রশ্ন</label>
+        <span class="pdf-count" id="pdfCount">—</span>
+      </div>
+    </div>
+    <p class="modal-sub" id="pdfTimeHint"></p>
     <div class="pdf-group">
-      <label class="modal-label" for="pdfSubj">বিষয়</label>
-      <input type="text" id="pdfSubj" placeholder="পদার্থবিজ্ঞান ১ম পত্র, উচ্চতর গণিত ১ম পত্র" autocomplete="off">
+      <label class="check"><input type="checkbox" id="pdfSets"> ৪টি সেট (A, B, C, D) — প্রতি সেটে প্রশ্ন এলোমেলো</label>
+    </div>
+    <hr class="pdf-sep">
+    <div class="pdf-group">
+      <label class="modal-label" for="pdfAns">PDF টাইপ</label>
+      <select id="pdfAns">
+        <option value="yes">উত্তরসহ — উত্তর তালিকা ও সমাধানসহ</option>
+        <option value="no">উত্তর ছাড়া — শুধু প্রশ্ন</option>
+      </select>
+    </div>
+    <div class="pdf-two-col">
+      <div class="pdf-group">
+        <label class="modal-label" for="pdfQSize">প্রশ্ন সাইজ <output id="pdfQSizeOut">১১px</output></label>
+        <input type="range" id="pdfQSize" min="8" max="24" step="1" value="11">
+      </div>
+      <div class="pdf-group">
+        <label class="modal-label" for="pdfHSize">হেডার সাইজ <output id="pdfHSizeOut">২৪px</output></label>
+        <input type="range" id="pdfHSize" min="14" max="40" step="1" value="24">
+      </div>
     </div>
     <div class="pdf-group">
-      <label class="modal-label" for="pdfTime">সময়</label>
-      <input type="text" id="pdfTime" placeholder="৬০ মিনিট, 1 ঘণ্টা, 90 min" autocomplete="off" spellcheck="false">
-      <p class="modal-sub" id="pdfTimeHint"></p>
+      <label class="modal-label" for="pdfWm">ওয়াটারমার্ক টেক্সট <span class="modal-opt">(ঐচ্ছিক)</span></label>
+      <input type="text" id="pdfWm" placeholder="AAP Pathshala" autocomplete="off">
+      <div class="pdf-sub-group">
+        <label class="modal-label" for="pdfWmOp">ট্রান্সপারেন্সি <output id="pdfWmOpOut">৯০%</output></label>
+        <input type="range" id="pdfWmOp" min="50" max="98" step="1" value="90">
+      </div>
     </div>
     <div class="pdf-group">
-      <label class="modal-label" for="pdfDate">তারিখ</label>
-      <input type="date" id="pdfDate">
+      <label class="modal-label" for="pdfWmImg">ওয়াটারমার্ক ছবি <span class="modal-opt">(ঐচ্ছিক)</span></label>
+      <div class="pdf-file-row">
+        <input type="file" id="pdfWmImg" accept="image/*">
+        <button type="button" class="icon-btn" id="pdfWmImgClear">মুছুন</button>
+      </div>
+      <p class="modal-sub" id="pdfWmImgHint"></p>
     </div>
     <div class="pdf-group">
-      <label class="modal-label" for="pdfCount">মোট প্রশ্ন</label>
-      <input type="text" id="pdfCount" readonly tabindex="-1" aria-readonly="true">
+      <label class="modal-label">ফুটার <span class="modal-opt">(ঐচ্ছিক)</span></label>
+      <div class="pdf-two-col">
+        <input type="text" id="pdfFootL" placeholder="বাম" autocomplete="off">
+        <input type="text" id="pdfFootR" placeholder="ডান" autocomplete="off">
+      </div>
     </div>
     <div class="modal-actions">
+      <button class="icon-btn" id="pdfPreviewBtn">প্রিভিউ দেখুন</button>
       <button class="icon-btn primary" id="pdfGo">PDF নামান</button>
       <button class="icon-btn" id="pdfCancel">বাতিল</button>
     </div>
     <p class="modal-note" id="pdfNote"></p>
+  </div>
+</div>
+
+<div class="modal-back pdf-prev-back" id="pdfPreview" hidden>
+  <div class="pdf-prev" role="dialog" aria-modal="true" aria-labelledby="pdfPrevHead">
+    <div class="pdf-prev-bar">
+      <span id="pdfPrevHead">প্রিভিউ</span>
+      <div class="pdf-prev-actions">
+        <button class="icon-btn primary" id="pdfPrevGo" type="button">PDF নামান</button>
+        <button class="icon-btn" id="pdfPrevClose" type="button">বন্ধ</button>
+      </div>
+    </div>
+    <div class="pdf-prev-scroll" id="pdfPrevScroll"></div>
   </div>
 </div>
 

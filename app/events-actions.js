@@ -71,6 +71,7 @@
         });
         if (closed) return;
         if (window.$('pdfSaveModal') && !window.$('pdfSaveModal').hidden) window.closePdfSave();
+        else if (window.$('pdfPreview') && !window.$('pdfPreview').hidden) window.closePdfPreview();
         else if (!window.$('csvModal').hidden) window.closeCSV();
         else if (!window.$('pdfModal').hidden) window.closePdf();
         else if (window.$('q')) window.$('q').blur();
@@ -135,6 +136,50 @@
       });
     }
     if (window.$('pdfGo')) window.$('pdfGo').addEventListener('click', window.pdfGo);
+    if (window.$('pdfPreviewBtn')) window.$('pdfPreviewBtn').addEventListener('click', window.pdfPreview);
+    if (window.$('pdfPrevClose')) window.$('pdfPrevClose').addEventListener('click', window.closePdfPreview);
+    if (window.$('pdfPrevGo')) {
+      window.$('pdfPrevGo').addEventListener('click', function () {
+        window.closePdfPreview();
+        window.pdfGo();
+      });
+    }
+    if (window.$('pdfPreview')) {
+      window.$('pdfPreview').addEventListener('click', function (e) {
+        if (e.target === window.$('pdfPreview')) window.closePdfPreview();
+      });
+    }
+    ['pdfQSize', 'pdfHSize', 'pdfWmOp'].forEach(function (id) {
+      var el = window.$(id);
+      if (el) el.addEventListener('input', window.updateSizeLabels);
+    });
+    var wmFile = window.$('pdfWmImg');
+    if (wmFile) {
+      wmFile.addEventListener('change', function () {
+        var f = wmFile.files && wmFile.files[0];
+        if (!f) return;
+        if (!/^image\//.test(f.type || '')) {
+          if (window.flashNote) window.flashNote('শুধু ছবি (PNG/JPG) ফাইল দিন');
+          wmFile.value = '';
+          return;
+        }
+        var fr = new FileReader();
+        fr.onload = function () {
+          window.pdfWmImage = String(fr.result || '');
+          window.savePdfWmImage(window.pdfWmImage);
+          window.updateWmImgHint();
+        };
+        fr.readAsDataURL(f);
+      });
+    }
+    if (window.$('pdfWmImgClear')) {
+      window.$('pdfWmImgClear').addEventListener('click', function () {
+        window.pdfWmImage = '';
+        window.savePdfWmImage('');
+        if (wmFile) wmFile.value = '';
+        window.updateWmImgHint();
+      });
+    }
     if (window.$('pdfSaveClose')) window.$('pdfSaveClose').addEventListener('click', window.closePdfSave);
     if (window.$('pdfSaveModal')) {
       window.$('pdfSaveModal').addEventListener('click', function (e) {

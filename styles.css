@@ -278,6 +278,7 @@ html[data-theme="dark"] .icon-btn[aria-pressed="true"] { color: #06211f; }
 
 .checkrow { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
 .check { display: flex; align-items: center; gap: .35rem; font-size: .85rem; cursor: pointer; }
+.modal .check { font-size: .82rem; }
 .check input { accent-color: var(--accent); width: 15px; height: 15px; }
 
 .statusbar {
@@ -546,15 +547,17 @@ footer code { font-family: var(--mono); font-size: .95em; }
 .modal-back[hidden] { display: none; }
 .modal {
   width: 100%;
-  max-width: 420px;
+  max-width: 430px;
+  max-height: min(92vh, 760px);
+  overflow-y: auto;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 1.1rem 1.2rem 1.2rem;
+  padding: .9rem 1rem 1rem;
 }
-.modal h3 { margin: 0 0 .5rem; font-size: 1.05rem; }
-.modal-hint { margin: 0 0 .8rem; color: var(--muted); font-size: .85rem; line-height: 1.5; }
+.modal h3 { margin: 0 0 .3rem; font-size: 1rem; }
+.modal-hint { margin: 0 0 .3rem; color: var(--muted); font-size: .78rem; line-height: 1.45; }
 .tabs {
   display: flex;
   gap: .35rem;
@@ -619,28 +622,60 @@ footer code { font-family: var(--mono); font-size: .95em; }
 .sel-drop:hover { border-color: var(--correct); color: var(--correct); background: var(--surface); }
 .sel-drop:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .modal-hint code { font-family: var(--mono); background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 0 .25rem; }
-.modal-label { display: block; font-size: .78rem; font-weight: 600; color: var(--muted); margin-bottom: .3rem; }
+.modal-label { display: block; font-size: .74rem; font-weight: 600; color: var(--muted); margin-bottom: .22rem; }
 .modal-opt { font-weight: 400; color: var(--muted); opacity: .8; }
 .range-row { display: flex; gap: .6rem; }
 .range-row .range-cell { flex: 1 1 0; min-width: 0; }
-.modal-sub { margin: .35rem 0 0; color: var(--muted); font-size: .78rem; line-height: 1.55; }
+.modal-sub { margin: .28rem 0 0; color: var(--muted); font-size: .74rem; line-height: 1.45; }
 .modal-sub code { font-family: var(--mono); background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 0 .25rem; }
 .modal input[type="text"],
 .modal input[type="date"] {
   width: 100%;
-  padding: .55rem .65rem;
+  padding: .44rem .55rem;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 7px;
   background: var(--surface-2);
   color: var(--text);
   font: inherit;
+  font-size: .88rem;
 }
 .modal input[type="text"]:focus,
 .modal input[type="date"]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.modal select {
+  width: 100%;
+  padding: .44rem .55rem;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: .88rem;
+}
+.modal select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.modal input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+  margin: .15rem 0 0;
+  cursor: pointer;
+}
+.modal output {
+  float: right;
+  font-family: var(--mono);
+  font-size: .74rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+.pdf-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+.pdf-two-col .pdf-group { margin-top: .55rem; }
+.pdf-three-col { display: grid; grid-template-columns: 1fr 1fr 1.15fr; gap: .6rem; }
+.pdf-three-col .pdf-group { margin-top: .55rem; }
+.pdf-sub-group { margin-top: .3rem; }
+.pdf-sep { border: 0; border-top: 1px dashed var(--border); margin: .7rem 0 0; }
+.modal-actions { flex-wrap: wrap; }
 .modal-err { margin: .5rem 0 0; color: var(--wrong); font-size: .84rem; }
 .modal-err[hidden] { display: none; }
-.modal-note { margin: .6rem 0 0; color: var(--muted); font-size: .82rem; min-height: 1em; }
-.modal-actions { display: flex; gap: .5rem; margin-top: .9rem; }
+.modal-note { margin: .5rem 0 0; color: var(--muted); font-size: .8rem; min-height: 1em; }
+.modal-actions { display: flex; gap: .45rem; margin-top: .75rem; }
 .modal-actions .icon-btn { flex: 1; }
 .modal-actions a.icon-btn {
   display: inline-flex;
@@ -650,7 +685,7 @@ footer code { font-family: var(--mono); font-size: .95em; }
   text-decoration: none;
 }
 .pdf-save-name { color: var(--text); font-weight: 600; word-break: break-all; }
-.pdf-group { margin-top: .7rem; }
+.pdf-group { margin-top: .55rem; }
 .pdf-group:first-of-type { margin-top: 0; }
 .icon-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .icon-btn.primary:hover { filter: brightness(1.08); }
@@ -720,9 +755,10 @@ body.pdf-render .paper-doc { padding: 0; }
   font-variant-ligatures: normal !important;
 }
 .pdf-page {
+  position: relative;
   width: 210mm;
   min-height: 296mm;
-  padding: 8mm;
+  padding: 8mm 8mm 15mm;
   box-sizing: border-box;
   background: #fff;
   overflow: hidden;
@@ -742,7 +778,62 @@ body.pdf-render .paper-doc { padding: 0; }
   letter-spacing: 0px !important;
   font-variant-ligatures: normal !important;
 }
-.pdf-cols { display: flex; gap: 12mm; }
+.pdf-cols { display: flex; gap: 12mm; position: relative; z-index: 1; }
+/* watermark: baked into every .pdf-page by buildPaper so html2canvas rasterizes it */
+.pdf-wm {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(-30deg);
+  font-size: 44px;
+  font-weight: 700;
+  color: #000;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+.pdf-wm-img {
+  width: 62%;
+  height: 62%;
+  transform: translate(-50%, -50%);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+.pdf-count {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 .6rem;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+  font-size: .88rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+.pdf-file-row { display: flex; align-items: center; gap: .5rem; }
+.pdf-file-row input[type="file"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: inherit;
+  font-size: .76rem;
+  color: var(--muted);
+}
+.pdf-file-row input[type="file"]::file-selector-button {
+  font: inherit;
+  font-size: .76rem;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: .3rem .55rem;
+  margin-right: .45rem;
+  cursor: pointer;
+}
+.pdf-file-row .icon-btn { flex: none; padding: .35rem .55rem; font-size: .76rem; }
 .pdf-col { width: 91mm; min-width: 0; }
 .pdf-col + .pdf-col { border-left: 1px solid #bbb; }
 /* buildPaper already splits the paper into exact A4 pages, so the old
@@ -760,12 +851,27 @@ body.pdf-render .pdf-page:not(:last-child) {
   break-after: page;
 }
 .paper-head {
+  position: relative;
+  z-index: 1;
   text-align: center;
-  border-bottom: 2.5px solid #111;
-  padding-bottom: 6px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
-.paper-head h1 { margin: 0 0 3px; font-size: 17px; color: #111; letter-spacing: 0px !important; }
+.paper-head h1 { margin: 0 0 2px; font-size: 20px; font-weight: 700; color: #111; letter-spacing: 0px !important; }
+.paper-sub { margin: 0 0 4px; font-size: 11px; color: #444; }
+.paper-sub:empty { min-height: 1.15em; }
+.paper-tutor { margin: 1px 0 2px; font-weight: 600; color: #333; }
+.head-rule { border-top: 2px solid #111; margin: 4px 0; }
+.paper-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #111;
+  padding: 2px 0;
+}
+.paper-meta-row span:empty { display: none; }
 .paper-meta { margin: 0; font-size: 11px; color: #333; }
 .paper-note { margin: 4px 0 0; font-size: 10.5px; color: #444; }
 .paper-cols {
@@ -779,20 +885,27 @@ body.pdf-render .pdf-page:not(:last-child) {
   column-break-inside: avoid;
   margin-bottom: 6px;
 }
-.pq-q { margin: 0 0 2px; }
-.pq-n { font-weight: 700; margin-right: 5px; }
+/* stem is flex so the number never wraps onto its own line, even when the
+   question HTML contains block-level <p>/<div> content */
+.pq-q { display: flex; align-items: flex-start; gap: 5px; margin: 0 0 3px; font-weight: 700; }
+.pq-n { flex: none; font-weight: 700; }
+.pq-body { flex: 1 1 auto; min-width: 0; }
 .pq-body img { max-width: 100%; height: auto; }
 .pq-body p { margin: 0 0 .2rem; }
-.pq-opts { display: flex; flex-wrap: wrap; margin-left: 12px; }
-.pq-opt { display: flex; gap: 5px; margin-bottom: 1px; min-width: 0; }
+.pq-opts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 6px;
+  margin-left: 4px;
+}
+.pq-opt { display: flex; gap: 4px; margin-bottom: 2px; min-width: 0; }
 .pq-opt p { margin: 0; }
-.pq-opts.inline { flex-wrap: nowrap; }
-.pq-opts.inline .pq-opt { flex: 1 1 30px; width: auto; }
-.pq-opts.half .pq-opt { width: 50%; }
-.pq-opts.stack .pq-opt { width: 100%; }
-.pq-key { font-weight: 600; flex: none; }
+.pq-key { font-weight: 400; flex: none; }
 .pq-val { min-width: 0; }
 .pq-val img { max-width: 100%; height: auto; }
+/* section headings of the answer key / solutions pages */
+.pq-sechead { margin-bottom: 10px; }
+.pq-sechead h2 { margin: 0 0 2px; font-weight: 700; color: #111; }
 .pq-keysec {
   page-break-before: always;
   break-before: page;
@@ -811,14 +924,29 @@ body.pdf-render .pdf-page:not(:last-child) {
   text-align: center;
   font-weight: 600;
 }
+/* four sets squeezed onto one key page */
+.pq-keyset-label { font-weight: 700; font-size: 11px; margin: 7px 0 3px; }
+.pq-keyset-label:first-child { margin-top: 0; }
+.pq-keytable-compact td { min-width: 42px; padding: 1px 5px; font-size: 10.5px; }
+/* per-page footer: sits in the reserved bottom padding, never affects
+   column measurement because it is absolutely positioned */
 .paper-foot {
-  margin-top: 14px;
-  padding-top: 5px;
-  border-top: 1px solid #999;
-  text-align: center;
-  font-size: 10px;
-  color: #555;
+  position: absolute;
+  left: 8mm;
+  right: 8mm;
+  bottom: 5mm;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding-top: 3px;
+  border-top: 1px solid #333;
+  font-size: 9.5px;
+  color: #444;
+  z-index: 1;
 }
+.paper-foot-l { text-align: left; }
+.paper-foot-r { text-align: right; margin-left: auto; }
 
 .pq-solsec {
   page-break-before: always;
@@ -841,16 +969,63 @@ body.pdf-render .pdf-page:not(:last-child) {
   page-break-inside: avoid;
   break-inside: avoid;
   column-break-inside: avoid;
-  margin-bottom: 4mm;
-  font-size: 11px;
+  margin-bottom: 6px;
+  font-size: 1em;
   line-height: 1.45;
 }
-.psol-q { margin: 0 0 2px; }
-.psol-a { margin: 0 0 2px; }
+.psol-q { display: flex; align-items: flex-start; gap: 5px; margin: 0 0 2px; font-weight: 700; }
+.psol-a {
+  margin: 2px 0 2px;
+  padding: 2px 6px;
+  background: #e9f2fa;
+  border-radius: 4px;
+  color: #16324a;
+}
 .psol-alabel { font-weight: 700; }
 .psol-e { margin: 0; color: #222; }
 .psol-e p { margin: 0 0 .2rem; }
-.psol img { max-width: 120px; height: auto; }
+.psol img { max-width: 100%; height: auto; }
+
+/* on-screen preview of the exact pages that will be rasterized into the PDF */
+.pdf-prev-back { z-index: 70; padding: .5rem; }
+.pdf-prev {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 900px;
+  height: min(94vh, 900px);
+  background: #3a4150;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.pdf-prev-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .6rem;
+  flex-wrap: wrap;
+  padding: .5rem .7rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  font-size: .85rem;
+  font-weight: 600;
+}
+.pdf-prev-actions { display: flex; gap: .45rem; }
+.pdf-prev-scroll { flex: 1; overflow: auto; padding: .8rem; }
+.pdf-prev-scroll .paper-doc { padding: 0; }
+.pdf-prev-scroll .pdf-page {
+  margin: 0 auto .8rem;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, .45);
+}
+/* pages are 210mm (~794px) — shrink them onto narrow screens */
+@media (max-width: 860px) {
+  .pdf-prev-scroll .pdf-page { zoom: .62; }
+}
+@media (max-width: 520px) {
+  .pdf-prev-scroll .pdf-page { zoom: .44; }
+}
 
 @media print {
   .topbar, .filters, .statusbar, footer, .loadmore, .modal-back, .selbar, .qsel { display: none !important; }
