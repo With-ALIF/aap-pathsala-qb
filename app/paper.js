@@ -142,6 +142,9 @@
     if (!(wmOp > 0)) wmOp = 0.1;
     var footL = String(meta.footerL || '').trim();
     var footR = String(meta.footerR || '').trim();
+    // breathing room between the header block and the first question; kept in
+    // JS so pagination can subtract it along with the measured header height
+    var HEAD_GAP = 18;
     var box = window.$('paper');
     if (box) box.innerHTML = '';
     var doc = window.el('div', 'paper-doc');
@@ -255,10 +258,11 @@
       var h1 = window.el('h1', null, meta.title || 'নির্বাচিত প্রশ্নের পরীক্ষাপত্র');
       h1.style.fontSize = hSize + 'px';
       head.appendChild(h1);
-      // tutor name sits right under the (bigger) exam name, in a much smaller face
+      // tutor name sits right under the (bigger) exam name, in the same size
+      // as the question text
       if (meta.tutor) {
         var tutor = window.el('p', 'paper-tutor', meta.tutor);
-        tutor.style.fontSize = Math.max(10, Math.min(14, Math.round(hSize * 0.5))) + 'px';
+        tutor.style.fontSize = qSize + 'px';
         head.appendChild(tutor);
       }
       // subtitle/title line: kept even when empty so the header spacing stays
@@ -272,6 +276,7 @@
       row.appendChild(window.el('span', null, dur ? 'সময়: ' + dur : ''));
       head.appendChild(row);
       head.appendChild(window.el('div', 'head-rule'));
+      head.style.marginBottom = HEAD_GAP + 'px';
       return head;
     }
 
@@ -284,7 +289,7 @@
       var order = sets > 1 ? seededShuffle(rows, seed + s * 7919) : rows;
       setOrders.push(order);
       var headNode = makeHead(sets > 1 ? labels[s] : '');
-      var headH = headNode ? measureTop(headNode) : 0;
+      var headH = headNode ? measureTop(headNode) + HEAD_GAP : 0;
       var qItems = measure(order.map(function (rec, i) { return questionNode(rec, i); }));
       var qPages = paginate(qItems, Math.max(120, MAX_H - headH));
       renderPages(qPages, qItems, headNode);
