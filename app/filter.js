@@ -94,6 +94,7 @@
     window.renderPage(true);
     window.refreshSelects(window.computeFacetCounts());
     window.updateStatus();
+    window.updateSelAllBtn();
     window.syncURL();
   };
   window.pendingFor = function (recs) {

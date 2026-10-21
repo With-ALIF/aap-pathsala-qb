@@ -52,6 +52,7 @@
       window.state.p = '';
     } else if (window.MULTI_FACETS.indexOf(key) !== -1) {
       window.state[key] = val === '' ? [] : window.state[key].filter(function (x) { return x !== val; });
+      if (key === 'un') { window.state.s = []; window.state.c = []; window.state.k = ''; }
       if (key === 's') { window.state.c = []; window.state.k = ''; }
       if (key === 'c') window.state.k = '';
     } else {

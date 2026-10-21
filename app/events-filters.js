@@ -15,8 +15,7 @@
       if (!el) return;
       el.addEventListener('change', function () {
         window.state[facet] = el.value;
-        if (facet === 'db') { window.state.un = window.state.y = ''; window.state.s = []; window.state.c = []; window.state.k = ''; }
-        if (facet === 'un') { window.state.s = []; window.state.c = []; window.state.k = ''; }
+        if (facet === 'db') { window.state.un = []; window.state.y = ''; window.state.s = []; window.state.c = []; window.state.k = ''; }
         window.writeControls();
         window.recompute();
       });

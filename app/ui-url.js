@@ -29,7 +29,7 @@
   window.readURL = function () {
     var raw = location.hash.replace(/^#/, '');
     var params = new URLSearchParams(raw);
-    ['q', 'db', 'un', 'y', 'k', 'ty', 'n', 'p', 'sort'].forEach(function (k) {
+    ['q', 'db', 'y', 'k', 'ty', 'n', 'p', 'sort'].forEach(function (k) {
       window.state[k] = params.has(k) ? params.get(k) : (k === 'sort' ? 'default' : '');
     });
     window.MULTI_FACETS.forEach(function (f) {

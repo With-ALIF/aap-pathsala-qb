@@ -68,7 +68,7 @@
     return tex == null ? escLatex(t) : tex;
   }
 
-  var HAS = /\[\s*[(\[][^)\]]{1,60}[)\]]\s*,\s*[(\[][^)\]]{1,60}[)\]]|\babs\s*\(|[|∣]\s*\([^)]{1,80}\)\s*,|sqrt\s*[(\[]|\broot\s*[2-9]\s*\(|[√∛∜]|\^|[A-Za-z0-9)]\s_|\bpm(?![a-zA-Z])|\bint(?![a-zA-Z])|class="mathy"|\b(?:alpha|beta|gamma|delta|theta|lambda|pi|omega|sigma|mu|rho|eta|tau|phi|psi|nu|kappa|zeta)\b|->/;
+  var HAS = /\[\s*[(\[][^)\]]{1,60}[)\]]\s*,\s*[(\[][^)\]]{1,60}[)\]]|\(\s*[(\[][^)\]]{1,60}[)\]]\s*,\s*[(\[][^)\]]{1,60}[)\]]|\babs\s*\(|[|∣]\s*\([^)]{1,80}\)\s*,|sqrt\s*[(\[]|\broot\s*[2-9]\s*\(|[√∛∜]|\^|[A-Za-z0-9)]\s_|\bpm(?![a-zA-Z])|\bint(?![a-zA-Z])|class="mathy"|\b(?:alpha|beta|gamma|delta|theta|lambda|pi|omega|sigma|mu|rho|eta|tau|phi|psi|nu|kappa|zeta)\b|->/;
 
   function splitTop(s) {
     var out = [], depth = 0, cur = '';
@@ -110,6 +110,8 @@
     var det = false, res = null;
     if (ch === '[') {
       res = readRows(src, i + 1, ']');
+    } else if (ch === '(') {
+      res = readRows(src, i + 1, ')');
     } else if (ch === '|' || ch === '∣') {
       det = true;
       res = readRows(src, i + 1, ch);
@@ -163,6 +165,7 @@
       var rest = src.slice(i);
 
        if (src.charAt(i) === '[' || src.charAt(i) === '|' || src.charAt(i) === '∣' ||
+          (src.charAt(i) === '(' && (src.charAt(i + 1) === '(' || src.charAt(i + 1) === '[')) ||
           /^abs\s*\(/.test(rest)) {
         var mx = readMatrix(src, i);
         if (mx) {

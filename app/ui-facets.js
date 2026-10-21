@@ -96,11 +96,13 @@
     if (on && idx === -1) arr.push(key);
     if (!on && idx !== -1) arr.splice(idx, 1);
     window.state[facet] = arr;
+    if (facet === 'un') { window.state.s = []; window.state.c = []; window.state.k = ''; }
     if (facet === 's') window.state.k = '';
     window.recompute();
   };
   window.clearMulti = function (facet) {
     window.state[facet] = [];
+    if (facet === 'un') { window.state.s = []; window.state.c = []; window.state.k = ''; }
     if (facet === 's') { window.state.c = []; window.state.k = ''; }
     if (facet === 'c') window.state.k = '';
     window.recompute();

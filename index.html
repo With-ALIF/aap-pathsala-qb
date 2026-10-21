@@ -46,9 +46,16 @@
     <select id="fDb"><option value="">সব</option></select>
   </div>
 
-  <div class="field">
-    <label for="fUn">বিশ্ববিদ্যালয় / ইনস্টিটিউট</label>
-    <select id="fUn"><option value="">সব</option></select>
+  <div class="field ms-field" id="msUn">
+    <label for="fUnBtn">বিশ্ববিদ্যালয় / ইনস্টিটিউট</label>
+    <button type="button" class="ms-btn" id="fUnBtn" aria-haspopup="true" aria-expanded="false">সব</button>
+    <div class="ms-pop" id="fUnPop" hidden>
+      <div class="ms-head">
+        <span id="fUnCount"></span>
+        <button type="button" class="ms-clear" id="fUnClear">সব মুছুন</button>
+      </div>
+      <div class="ms-list" id="fUnList" role="group" aria-label="বিশ্ববিদ্যালয় / ইনস্টিটিউট"></div>
+    </div>
   </div>
 
   <div class="field">
@@ -129,6 +136,7 @@
   <span id="count">—</span>
   <div class="chips" id="chips"></div>
   <span class="spacer"></span>
+  <button class="icon-btn selall" id="selAll" title="বর্তমান ফিল্টারকৃত সব প্রশ্ন এক ক্লিকে নির্বাচন করুন — এরপর আলাদা করে বাদ দিতে পারবেন">সব সিলেক্ট</button>
   <span id="shownNote"></span>
 </div>
 

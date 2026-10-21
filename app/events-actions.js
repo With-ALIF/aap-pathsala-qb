@@ -162,6 +162,7 @@
     if (selPdf) selPdf.addEventListener('click', window.openPdfModal);
     var selClear = window.$('selClear') || window.$('selClearBtn');
     if (selClear) selClear.addEventListener('click', window.clearAllSel);
+    if (window.$('selAll')) window.$('selAll').addEventListener('click', window.selectAllResults);
     if (window.$('selView')) window.$('selView').addEventListener('click', window.openSelTab);
     if (window.$('tabList')) window.$('tabList').addEventListener('click', function () { window.setTab('list'); });
     if (window.$('tabSel')) window.$('tabSel').addEventListener('click', function () { window.setTab('sel'); });

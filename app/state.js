@@ -12,11 +12,12 @@
   window.DAT = window.QB_DAT;
   window.LOADED = window.QB_LOADED;
   window.FACETS = ['db', 'un', 'y', 's', 'c', 'k', 'ty'];
-  window.FACET_ID = { db: 'fDb', un: 'fUn', y: 'fY', k: 'fK', ty: 'fTy' };
-  window.MULTI_FACETS = ['s', 'c'];
+  window.FACET_ID = { db: 'fDb', y: 'fY', k: 'fK', ty: 'fTy' };
+  window.MULTI_FACETS = ['s', 'c', 'un'];
   window.MULTI_ID = {
     s: { field: 'msS', btn: 'fSBtn', pop: 'fSPop', list: 'fSList', count: 'fSCount', clear: 'fSClear', label: 'বিষয়' },
-    c: { field: 'msC', btn: 'fCBtn', pop: 'fCPop', list: 'fCList', count: 'fCCount', clear: 'fCClear', label: 'অধ্যায়' }
+    c: { field: 'msC', btn: 'fCBtn', pop: 'fCPop', list: 'fCList', count: 'fCCount', clear: 'fCClear', label: 'অধ্যায়' },
+    un: { field: 'msUn', btn: 'fUnBtn', pop: 'fUnPop', list: 'fUnList', count: 'fUnCount', clear: 'fUnClear', label: 'বিশ্ববিদ্যালয়' }
   };
   window.CTRL_ID = { n: 'fN' };
   window.NONE = '__none__';
@@ -40,7 +41,7 @@
   window.DATMAP = {};
   window.pendIdx = {};
   window.pendDat = {};
-  window.state = { q: '', db: '', un: '', y: '', s: [], c: [], k: '', ty: '', n: '', p: '', sort: 'default', e: false, img: false, answers: true };
+  window.state = { q: '', db: '', un: [], y: '', s: [], c: [], k: '', ty: '', n: '', p: '', sort: 'default', e: false, img: false, answers: true };
   window.results = [];
   window.shown = 0;
 window.tab = 'list';

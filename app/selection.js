@@ -228,4 +228,39 @@
     window.updateSelBar();
     window.flashNote('সব নির্বাচন মুছে ফেলা হয়েছে');
   };
+
+  window.syncSelDom = function () {
+    var nodes = document.querySelectorAll('#list .qcard');
+    for (var i = 0; i < nodes.length; i++) {
+      var pk = nodes[i].dataset.pk;
+      var on = !!window.selMap[pk];
+      nodes[i].classList.toggle('selected', on);
+      var chk = nodes[i].querySelector('.qsel');
+      if (chk) chk.checked = on;
+    }
+  };
+  window.updateSelAllBtn = function () {
+    var b = window.$('selAll');
+    if (!b) return;
+    var n = window.results.length;
+    b.textContent = 'সব সিলেক্ট (' + window.num(n) + ')';
+    b.disabled = !n;
+  };
+  window.selectAllResults = function () {
+    var rows = window.results;
+    if (!rows.length) return;
+    var added = 0;
+    for (var i = 0; i < rows.length; i++) {
+      var rec = rows[i];
+      if (!window.selMap[rec.p]) {
+        window.selMap[rec.p] = rec;
+        window.selOrder.push(rec.p);
+        added++;
+      }
+    }
+    window.syncSelDom();
+    window.saveSel();
+    window.updateSelBar();
+    window.flashNote(added ? (window.num(added) + 'টি প্রশ্ন নির্বাচিত হয়েছে') : 'সব প্রশ্ন ইতিমধ্যেই নির্বাচিত');
+  };
 })();
