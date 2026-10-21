@@ -7,7 +7,6 @@
       return;
     }
     window.$('pdfNote').textContent = '';
-    window.$('pdfCount').textContent = window.bnNum(rows.length) + 'টি (' + window.num(rows.length) + ')';
     // restore the last-used settings so the fields don't have to be retyped
     // on every export
     var opts = window.loadPdfOpts();
