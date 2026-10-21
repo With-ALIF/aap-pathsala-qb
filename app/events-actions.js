@@ -33,11 +33,30 @@
     if (window.$('moreBtn')) {
       window.$('moreBtn').addEventListener('click', function () { window.renderPage(false); });
     }
+    var toTop = window.$('toTop');
+    var syncToTop = function () {
+      if (!toTop) return;
+      var on = window.scrollY > 400;
+      if (on && toTop.hidden) {
+        toTop.hidden = false;
+        window.requestAnimationFrame(function () { toTop.classList.add('show'); });
+      } else if (!on && !toTop.hidden) {
+        toTop.classList.remove('show');
+        toTop.hidden = true;
+      }
+    };
     window.addEventListener('scroll', window.debounce(function () {
+      syncToTop();
       if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 800) {
         if (window.shown < window.results.length) window.renderPage(false);
       }
     }, 100));
+    syncToTop();
+    if (toTop) {
+      toTop.addEventListener('click', function () {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }
     window.addEventListener('hashchange', function () {
       var cur = location.hash.replace(/^#/, '');
       if (cur === window.lastSyncedHash) return;
@@ -72,6 +91,7 @@
         if (closed) return;
         if (window.$('pdfSaveModal') && !window.$('pdfSaveModal').hidden) window.closePdfSave();
         else if (window.$('pdfPreview') && !window.$('pdfPreview').hidden) window.closePdfPreview();
+        else if (window.$('selExpModal') && !window.$('selExpModal').hidden) window.closeSelExport();
         else if (!window.$('csvModal').hidden) window.closeCSV();
         else if (!window.$('pdfModal').hidden) window.closePdf();
         else if (window.$('q')) window.$('q').blur();
@@ -119,9 +139,25 @@
       });
     }
     var selCsv = window.$('selCsv') || window.$('selCsvBtn');
-    if (selCsv) selCsv.addEventListener('click', function () { window.runSelExport('standard'); });
+    if (selCsv) selCsv.addEventListener('click', function () { window.openSelExport('standard'); });
     var selMnr = window.$('selMnr') || window.$('selMnrBtn');
-    if (selMnr) selMnr.addEventListener('click', function () { window.runSelExport('mnr'); });
+    if (selMnr) selMnr.addEventListener('click', function () { window.openSelExport('mnr'); });
+    if (window.$('selExpGo')) {
+      window.$('selExpGo').addEventListener('click', function () {
+        window.runSelExport(window.selFmt || 'standard');
+      });
+    }
+    if (window.$('selExpCancel')) window.$('selExpCancel').addEventListener('click', window.closeSelExport);
+    if (window.$('selExpModal')) {
+      window.$('selExpModal').addEventListener('click', function (e) {
+        if (e.target === window.$('selExpModal')) window.closeSelExport();
+      });
+    }
+    if (window.$('selExpName')) {
+      window.$('selExpName').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); window.runSelExport(window.selFmt || 'standard'); }
+      });
+    }
     var selPdf = window.$('selPdf') || window.$('selPdfBtn');
     if (selPdf) selPdf.addEventListener('click', window.openPdfModal);
     var selClear = window.$('selClear') || window.$('selClearBtn');

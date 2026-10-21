@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>প্রশ্নব্যাংক — সম্পূর্ণ আর্কাইভ</title>
 <meta name="description" content="Offline question bank archive: 210,000+ questions with faceted filtering and search.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f766e'/%3E%3Ctext x='16' y='23' font-size='19' font-family='sans-serif' font-weight='700' fill='%23fff' text-anchor='middle'%3E%E0%A6%AA%3C/text%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="icon/alif-qb.svg">
 <link rel="stylesheet" href="vendor/katex/katex.min.css">
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -148,10 +148,13 @@
   <span class="selbar-count" id="selCount"></span>
   <button class="icon-btn" id="selView" title="নির্বাচিত প্রশ্নগুলো আলাদা ট্যাবে দেখুন">নির্বাচিত দেখুন</button>
   <button class="icon-btn primary" id="selPdf" title="নির্বাচিত প্রশ্ন দিয়ে পরীক্ষাপত্র — শিরোনাম/বিষয়/তারিখ দিয়ে এক ক্লিকে PDF নামান">PDF নামান</button>
-  <button class="icon-btn" id="selCsv" title="নির্বাচিত প্রশ্ন CSV ফাইলে নামান">CSV</button>
+  <button class="icon-btn" id="selCsv" title="নির্বাচিত প্রশ্ন CSV ফাইলে নামান">Rayvila</button>
   <button class="icon-btn mnr" id="selMnr" title="নির্বাচিত প্রশ্ন MNR ফরম্যাটে নামান">MNR</button>
+  <button class="icon-btn sq" id="selSq" title="নির্বাচিত প্রশ্ন Square CSV ফরম্যাটে নামান">Square</button>
   <button class="icon-btn" id="selClear" title="সব নির্বাচন মুছে দিন">নির্বাচন মুছুন</button>
 </div>
+
+<button class="totop" id="toTop" hidden aria-label="পেজের উপরে যান" title="উপরে যান">↑</button>
 
 <footer>
   <p>
@@ -166,7 +169,7 @@
     <p class="modal-hint">
       যে ফলাফল এখন দেখাচ্ছে সেগুলো থেকে শুরু-শেষ লিখুন —
       <code>1</code> থেকে <code>10</code>, <code>5</code> থেকে <code>50</code>।
-      একই রেঞ্জ দুই ফরম্যাটেই যাবে।
+      একই রেঞ্জ সব ফরম্যাটেই যাবে।
       <span id="csvAvail"></span>
     </p>
     <div class="range-row">
@@ -183,17 +186,40 @@
     <input type="text" id="csvName" placeholder="questions-1-10.csv" autocomplete="off" spellcheck="false">
     <p class="modal-sub">
       নাম খালি রাখলে রেঞ্জ অনুযায়ী নিজে বসবে —
-      <code>questions-1-10.csv</code> বা <code>mnr-1-10.csv</code>;
-      শেষে <code>.csv</code> না থাকলে যোগ হবে।
+      <code>questions-1-10.csv</code>, <code>mnr-1-10.csv</code> বা
+      <code>square-questions-1-to-10.csv</code>; শেষে <code>.csv</code> না থাকলে যোগ হবে।
     </p>
     <p class="modal-err" id="csvErr" hidden></p>
     <p class="modal-sub" id="csvFmtHint"></p>
+
+    <div class="sq-section">
+      <div class="sq-actions">
+        <button type="button" class="icon-btn sq" id="sqGo" title="বর্তমান রেঞ্জের প্রশ্ন Square CSV ফাইলে নামান">Square CSV</button>
+      </div>
+    </div>
+
     <div class="modal-actions">
-      <button class="icon-btn primary" id="csvGo">CSV Export</button>
+      <button class="icon-btn primary" id="csvGo">Rayvila CSV</button>
       <button class="icon-btn mnr" id="csvMnr">MNR Export</button>
       <button class="icon-btn" id="csvCancel">বাতিল</button>
     </div>
     <p class="modal-note" id="csvNote"></p>
+  </div>
+</div>
+
+<div class="modal-back" id="selExpModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="selExpTitle">
+    <h3 id="selExpTitle">CSV এক্সপোর্ট — নির্বাচিত প্রশ্ন</h3>
+    <p class="modal-hint" id="selExpCount"></p>
+    <label class="modal-label" for="selExpName">ফাইলের নাম <span class="modal-opt">(ঐচ্ছিক)</span></label>
+    <input type="text" id="selExpName" placeholder="selected-questions-20261021.csv" autocomplete="off" spellcheck="false">
+    <p class="modal-sub" id="selExpSub"></p>
+    <p class="modal-err" id="selExpErr" hidden></p>
+    <div class="modal-actions">
+      <button class="icon-btn primary" id="selExpGo">নামান</button>
+      <button class="icon-btn" id="selExpCancel">বাতিল</button>
+    </div>
+    <p class="modal-note" id="selExpNote"></p>
   </div>
 </div>
 

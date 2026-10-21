@@ -519,6 +519,32 @@ body[data-answers="off"] .answer-note { display: none; }
 .selbar-count { font-size: .85rem; font-weight: 600; color: var(--accent); white-space: nowrap; }
 html[data-theme="dark"] .selbar { box-shadow: 0 4px 16px rgba(0, 0, 0, .5); }
 
+.totop {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 56;
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(16, 24, 40, .18);
+  transition: opacity .2s ease, transform .2s ease;
+  opacity: 0;
+  transform: translateY(.5rem);
+  pointer-events: none;
+}
+.totop:hover { background: var(--accent-soft); border-color: var(--accent); }
+.totop[hidden] { display: none; }
+.totop.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+html[data-theme="dark"] .totop { box-shadow: 0 4px 14px rgba(0, 0, 0, .55); }
+
 footer {
   max-width: 1180px;
   margin: 0 auto;
@@ -689,6 +715,14 @@ footer code { font-family: var(--mono); font-size: .95em; }
 .icon-btn.primary:hover { filter: brightness(1.08); }
 .icon-btn.mnr { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 .icon-btn.mnr:hover { filter: brightness(1.05); }
+.sq-section { margin-top: .9rem; padding-top: .8rem; border-top: 1px dashed var(--border); }
+.sq-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .35rem; }
+.sq-title { font-size: .84rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); }
+.sq-count { font-size: .72rem; font-weight: 600; color: var(--muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: .05rem .45rem; }
+.sq-actions { display: flex; gap: .5rem; margin-top: .6rem; }
+.sq-actions .icon-btn { flex: 1; }
+.icon-btn.sq { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.icon-btn.sq:hover { filter: brightness(1.05); }
 .icon-btn.on { outline: 2px solid var(--accent); outline-offset: 2px; }
 .icon-btn:disabled { opacity: .6; cursor: progress; }
 .icon-btn[aria-disabled="true"] { opacity: .5; pointer-events: none; }
@@ -713,6 +747,7 @@ footer code { font-family: var(--mono); font-size: .95em; }
     box-shadow: 0 -4px 18px rgba(16, 24, 40, .18);
   }
   html[data-theme="dark"] .selbar { box-shadow: 0 -4px 18px rgba(0, 0, 0, .55); }
+  .totop { bottom: 4.6rem; right: .9rem; }
   .selbar-count { flex: 1 0 100%; text-align: center; font-size: .8rem; }
   .selbar .icon-btn {
     flex: 1 1 0;
@@ -760,10 +795,6 @@ body.pdf-render .paper-doc { padding: 0; }
   box-sizing: border-box;
   background: #fff;
   overflow: hidden;
-  /* html2pdf clones each .pdf-page into its own container, outside .paper-doc,
-     so the typography has to live on the page itself. Without this the clone
-     falls back to the body font size and the content grows ~1.5x, which the
-     A4 crop then chops off. */
   color: #111;
   font-family: "SolaimanLipi", "Noto Sans Bengali", "Kalpurush", "Nirmala UI", "Siyam Rupali", -apple-system, sans-serif !important;
   font-size: 11px;
@@ -828,9 +859,6 @@ body.pdf-render .paper-cols,
 body.pdf-render .sol-cols { column-count: initial; }
 body.pdf-render .pq-keysec,
 body.pdf-render .pq-solsec { page-break-before: auto; break-before: auto; }
-/* each .pdf-page is a touch under A4, so html2pdf's CSS break mode can pad to
-   the next sheet boundary and every page starts a fresh sheet. Without this the
-   raw slicer drifts a fraction of a mm per page and leaves part-empty sheets */
 body.pdf-render .pdf-page:not(:last-child) {
   page-break-after: always;
   break-after: page;
@@ -871,8 +899,7 @@ body.pdf-render .pdf-page:not(:last-child) {
   column-break-inside: avoid;
   margin-bottom: 6px;
 }
-/* stem is flex so the number never wraps onto its own line, even when the
-   question HTML contains block-level <p>/<div> content */
+
 .pq-q { display: flex; align-items: flex-start; gap: 5px; margin: 0 0 3px; font-weight: 700; }
 .pq-n { flex: none; font-weight: 700; }
 .pq-body { flex: 1 1 auto; min-width: 0; }
@@ -889,7 +916,7 @@ body.pdf-render .pdf-page:not(:last-child) {
 .pq-key { font-weight: 400; flex: none; }
 .pq-val { min-width: 0; }
 .pq-val img { max-width: 100%; height: auto; }
-/* section headings of the answer key / solutions pages */
+
 .pq-sechead { margin-bottom: 10px; }
 .pq-sechead h2 { margin: 0 0 2px; font-weight: 700; color: #111; }
 .pq-keysec {

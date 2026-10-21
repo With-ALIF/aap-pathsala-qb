@@ -14,6 +14,7 @@
     'app/csv.js',
     'app/mnr.js',
     'app/export.js',
+    'app/square-csv.js',
     'app/paper.js',
     'app/pdf.js',
     'app/ui-facets.js',

@@ -93,8 +93,6 @@
     if (r || !h) out.push(window.bnNum(r) + ' মিনিট');
     return out.join(' ');
   };
-  // keep an open popover inside the viewport (mobile: right-column fields
-  // would otherwise push it past the screen edge)
   window.clampPop = function (pop) {
     pop.style.left = '';
     var m = 8;

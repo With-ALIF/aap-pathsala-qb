@@ -1,6 +1,7 @@
 (function () {
   'use strict';
   window.csvExportRows = function (rows, fmt) {
+    if (fmt === 'square') return window.buildSquareCSV(rows);
     return fmt === 'mnr' ? window.buildMNR(rows) : window.buildCSV(rows);
   };
   window.csvExportRange = function (from, to, fmt) {
@@ -106,23 +107,82 @@
   window.autoSelName = function (fmt) {
     var d = new Date();
     var stamp = d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
-    var pfx = fmt === 'mnr' ? 'selected-mnr-' : 'selected-questions-';
+    var pfx = fmt === 'mnr' ? 'selected-mnr-' : fmt === 'square' ? 'selected-square-' : 'selected-questions-';
     return pfx + stamp + '.csv';
+  };
+  window.selFmtLabel = function (fmt) {
+    if (fmt === 'mnr') return 'MNR';
+    if (fmt === 'square') return 'Square CSV';
+    return 'Rayvila CSV';
+  };
+  window.selFmtSuffix = function (fmt) {
+    if (fmt === 'mnr') return '-mnr';
+    if (fmt === 'square') return '-square';
+    return '';
+  };
+  window.selErr = function (msg) {
+    var e = window.$('selExpErr');
+    if (e) {
+      e.textContent = msg;
+      e.hidden = !msg;
+    }
+  };
+  window.selNote = function (msg) {
+    var e = window.$('selExpNote');
+    if (e) e.textContent = msg || '';
+  };
+  window.openSelExport = function (fmt) {
+    var n = window.selOrder.length;
+    if (!n) { window.flashNote('আগে কিছু প্রশ্ন নির্বাচন করুন'); return; }
+    window.selFmt = fmt;
+    window.selErr('');
+    window.selNote('');
+    if (window.$('selExpTitle')) window.$('selExpTitle').textContent = window.selFmtLabel(fmt) + ' — নির্বাচিত প্রশ্ন';
+    if (window.$('selExpCount')) {
+      window.$('selExpCount').textContent = window.num(n) + 'টি নির্বাচিত প্রশ্ন এক্সপোর্ট হবে।';
+    }
+    var auto = window.autoSelName(fmt);
+    if (window.$('selExpName')) {
+      window.$('selExpName').value = '';
+      window.$('selExpName').placeholder = auto;
+    }
+    if (window.$('selExpSub')) {
+      window.$('selExpSub').textContent = 'নাম খালি রাখলে ' + auto + ' নামে নামবে; শেষে .csv না থাকলে যোগ হবে।';
+    }
+    if (window.$('selExpGo')) window.$('selExpGo').disabled = false;
+    if (window.$('selExpModal')) window.$('selExpModal').hidden = false;
+    if (window.$('selExpName')) window.$('selExpName').focus();
+  };
+  window.closeSelExport = function () {
+    if (window.$('selExpModal')) window.$('selExpModal').hidden = true;
+  };
+  window.selNameFor = function (fmt) {
+    var el = window.$('selExpName');
+    var user = window.sanitizeName(el ? el.value : '');
+    if (!user) return window.autoSelName(fmt);
+    window.saveLastName(user);
+    var suf = window.selFmtSuffix(fmt);
+    return user + (suf && !new RegExp(suf.replace('-', '\\-') + '$', 'i').test(user) ? suf : '') + '.csv';
   };
   window.runSelExport = function (fmt) {
     var rows = window.selRecs();
-    if (!rows.length) return;
+    if (!rows.length) { window.closeSelExport(); return; }
     var needed = window.pendingFor(rows);
     window.setSelBusy(true);
-    window.flashNote('শার্ড লোড হচ্ছে…');
+    window.selErr('শার্ড লোড হচ্ছে…');
+    window.selNote('');
+    if (window.$('selExpGo')) window.$('selExpGo').disabled = true;
     Promise.all(needed.map(window.loadDat)).then(function () {
       window.setSelBusy(false);
+      if (window.$('selExpGo')) window.$('selExpGo').disabled = false;
       var content = window.csvExportRows(rows, fmt);
-      window.downloadCSV(content, window.autoSelName(fmt));
+      window.downloadCSV(content, window.selNameFor(fmt));
+      window.closeSelExport();
       window.flashNote('CSV নামানো হয়েছে');
     }).catch(function (err) {
       window.setSelBusy(false);
-      window.flashNote('শার্ড লোড ব্যর্থ: ' + (err && err.message ? err.message : err));
+      if (window.$('selExpGo')) window.$('selExpGo').disabled = false;
+      window.selErr('শার্ড লোড ব্যর্থ: ' + (err && err.message ? err.message : err));
     });
   };
   window.csvNamePlaceholder = function () {

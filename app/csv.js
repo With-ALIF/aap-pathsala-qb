@@ -52,7 +52,6 @@ window.stripHTML = function (s) {
   window.downloadBlob = function (blob, name) {
     if (!blob) return false;
     try {
-      // legacy Edge/IE
       if (window.navigator && typeof window.navigator.msSaveOrOpenBlob === 'function') {
         window.navigator.msSaveOrOpenBlob(blob, name);
         return true;
@@ -69,8 +68,6 @@ window.stripHTML = function (s) {
       a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
-      // keep the anchor and the object URL alive briefly: some browsers read
-      // the blob after the click event has already returned
       setTimeout(function () { try { a.remove(); } catch (e) {} }, 1000);
       setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) {} }, 60000);
       return true;

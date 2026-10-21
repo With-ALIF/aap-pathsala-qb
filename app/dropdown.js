@@ -145,7 +145,6 @@
   document.addEventListener('click', function (e) {
     if (!registry.length) return;
     if (e.target && e.target.closest && e.target.closest('.dd')) return;
-    // labels of wrapped selects are handled by their own toggle handler
     if (e.target && e.target.tagName === 'LABEL') {
       var fid = e.target.getAttribute('for');
       for (var i = 0; i < registry.length; i++) if (registry[i].sel.id === fid) return;

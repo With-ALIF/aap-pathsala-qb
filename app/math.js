@@ -63,9 +63,6 @@
       .replace(/\$/g, '\\$').replace(/~/g, '\\sim');
   }
 
-  // Convert a fragment that sits inside another construct (radical, script,
-  // matrix cell) so nested math such as sqrt(2+sqrt(2)) or m^2 is handled
-  // recursively instead of being escaped into literal text.
   function texOf(t) {
     var tex = window.mathLatex(tidy(String(t)), true);
     return tex == null ? escLatex(t) : tex;
@@ -143,9 +140,6 @@
 
   window.mathNeeds = function (s) {
     if (!s || !HAS.test(s)) return false;
-    // A bare √ inside a Bengali sentence ("প্রতিসরাঙ্ক √2 হলে ...") is part of
-    // the prose. Converting the whole node to KaTeX would drop every word
-    // space, so only treat radicals as math when the node is a formula.
     if (/[ঀ-৿]/.test(s) && /[√∛∜]/.test(s) && !/sqrt\s*[(\[]|\broot\s*[2-9]\s*\(|\^|_/.test(s)) return false;
     return true;
   };
@@ -185,9 +179,6 @@
           take('\\sqrt{' + texOf(g.inner) + '}', g.end - i);
           continue;
         }
-        // Unclosed sqrt( in the source: treat everything up to a trailing dx
-        // (or the end of the formula) as the radicand instead of printing the
-        // literal word "sqrt".
         var tail = src.slice(gi + 1);
         var mDx = /\s+d\s*x\b/i.exec(tail);
         var inner = (mDx ? tail.slice(0, mDx.index) : tail).replace(/\s+$/, '');
@@ -299,7 +290,6 @@
         continue;
       }
 
-      // "vecA" / "vecB" is the dataset's vector notation.
       var mVec = /^vec\s*([A-Za-z])(?![A-Za-z])/.exec(rest);
       if (mVec) {
         take('\\vec{' + mVec[1] + '}', mVec[0].length);
@@ -356,9 +346,6 @@
         var rendered = window.katex.renderToString(tex, {
           throwOnError: false, displayMode: false, output: 'html', strict: 'ignore'
         });
-        // KaTeX reports parse errors as .katex-error carrying the raw TeX.
-        // Injecting that turns the next pass into double-escaped garbage, so
-        // keep the original text instead.
         if (rendered.indexOf('katex-error') >= 0) { out += rest; break; }
         out += rendered;
       } catch (e) {
@@ -381,8 +368,6 @@
     }
   };
 
-  // <sup>3</sup>√x  ->  \sqrt[3]{x}. A numeric superscript glued to a radical
-  // is a root index, not an exponent.
   function mergeRadicalIndex(root) {
     var sups = root.querySelectorAll('sup');
     for (var i = sups.length - 1; i >= 0; i--) {

@@ -7,10 +7,6 @@
       imgs[i].setAttribute('decoding', 'async');
     }
   };
-  // Intrinsic sizes of images we have already seen, keyed by absolute URL.
-  // The PDF paginator measures column heights synchronously, so an <img> that
-  // has not decoded yet reports zero height; the page then gets overfilled and
-  // the tail is clipped. Remembering the size lets a rebuild reserve the box.
   window.IMG_SIZE = window.IMG_SIZE || {};
   function rememberImg(img) {
     if (img && img.src && img.naturalWidth && img.naturalHeight) {

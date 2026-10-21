@@ -276,6 +276,31 @@ Implemented against a documented 17-rule import spec, with each rule cited inlin
 | `type_id` | Always empty (`app.js:504`) |
 | `correct_options` | 1-based positions joined by comma; bare when single, quoted when it contains a comma so the CSV doesn't split (`app.js:457-461`) |
 
+### Square CSV — 18 columns
+
+```
+question,type,
+option1,option2,option3,option4,
+answer,explanation,
+question_image,option1_image,option2_image,option3_image,option4_image,explanation_image,
+subject_name,paper_name,chapter_name,topic_name
+```
+
+Implemented in `app/square-csv.js` (`sqRow` / `buildSquareCSV`):
+
+| Column | Source |
+|---|---|
+| `type` | `mcq` or `written` from the record's type flag |
+| `option1–4` | First four option texts; a fifth option is dropped by this format |
+| `answer` | Correct options as letters — `A`, `A,C,D` for multi-answer |
+| `*_image` | One `<img>` → bare URL, several → JSON array of URLs |
+| `subject_name` | `P-1` → `পদার্থবিজ্ঞান`, non-paper tags fall back to their full label |
+| `paper_name` | Number after the dash → `১ম পত্র` / `২য় পত্র`; blank for untagged subjects |
+| `chapter_name` | Human chapter name (`P-1.2` → `ভেক্টর`), raw tag when unmapped |
+| `topic_name` | Topic passed through verbatim |
+
+The modal's **Square CSV** button exports the same start/end range used by CSV and MNR (filename `square-questions-1-to-10.csv`, user names get a `-square` suffix), and the selection bar's **Square** button exports the checked questions (`selected-square-YYYYMMDD.csv`).
+
 ### Range input
 
 Accepts `1 to 10`, `5-50`, `৬ থেকে ৩৪`, or a value in either box — **Bengali numerals are parsed** (`১০` → `10`, `app.js:518-521`). Reversed bounds are normalized automatically.
