@@ -1,7 +1,5 @@
 (function () {
   'use strict';
-  // saved papers: the selected question ids + every PDF setting, kept in
-  // localStorage so they survive reloads on this browser
   var KEY = 'qb_saved_papers_v1';
   var MAX = 60;
   var MONTHS = ['জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন',
@@ -99,7 +97,6 @@
     });
   };
 
-  // ---------------- save current selection + settings ----------------
   window.saveCurrentPaper = function () {
     var rows = window.selRecs();
     if (!rows.length) {
@@ -166,7 +163,6 @@
       : 'প্রশ্ন সেভ হয়েছে — উপরের “সেভ প্রশ্ন সমূহ” বোতাম থেকে আবার খুলুন');
   };
 
-  // ---------------- saved papers list ----------------
   window.openPapers = function () {
     window.renderPapers();
     window.$('papersModal').hidden = false;
@@ -241,8 +237,6 @@
     });
   };
 
-  // ---------------- actions ----------------
-  // a list action replaces whatever PDF/preview dialog is open behind it
   function closePdfOverlays() {
     if (window.$('pdfPreview') && !window.$('pdfPreview').hidden && window.closePdfPreview) window.closePdfPreview();
     if (window.$('pdfSaveModal') && !window.$('pdfSaveModal').hidden && window.closePdfSave) window.closePdfSave();
@@ -260,7 +254,6 @@
   };
 
   function restoreSelection(rows) {
-    // clear the checkboxes of the previous selection (if the list is rendered)
     var old = document.querySelectorAll('#list .qcard.selected');
     for (var i = 0; i < old.length; i++) {
       old[i].classList.remove('selected');
@@ -291,8 +284,6 @@
     if (!rows.length) { window.flashNote('এই সেভে কোনো প্রশ্ন নেই'); return; }
     var meta = normalizeMeta(p.meta);
     restoreSelection(rows);
-    // push the saved settings back into the PDF form so the next export is
-    // identical, then open the selection tab for editing
     window.applyPdfOpts(meta);
     window.savePdfOpts();
     window.updateDurationHint();

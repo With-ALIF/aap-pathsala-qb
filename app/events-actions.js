@@ -70,11 +70,7 @@
     document.addEventListener('keydown', function (e) {
       var tag = (e.target.tagName || '').toLowerCase();
       var inInput = tag === 'input' || tag === 'select' || tag === 'textarea';
-      if (e.key === '/' && !inInput) {
-        e.preventDefault();
-        window.$('q').focus();
-        window.$('q').select();
-      } else if (e.key === 'a' && !inInput && !e.ctrlKey && !e.metaKey) {
+      if (e.key === 'a' && !inInput && !e.ctrlKey && !e.metaKey) {
         if (window.$('answersBtn')) window.$('answersBtn').click();
       } else if (e.key === 'Escape') {
         var closed = false;
@@ -97,7 +93,6 @@
         else if (window.$('selExpModal') && !window.$('selExpModal').hidden) window.closeSelExport();
         else if (!window.$('csvModal').hidden) window.closeCSV();
         else if (!window.$('pdfModal').hidden) window.closePdf();
-        else if (window.$('q')) window.$('q').blur();
       }
     });
     if (window.$('csvBtn')) window.$('csvBtn').addEventListener('click', window.openCSV);
@@ -203,12 +198,31 @@
           wmFile.value = '';
           return;
         }
-        var fr = new FileReader();
-        fr.onload = function () {
-          window.pdfWmImage = String(fr.result || '');
-          window.pdfWmImageName = f.name || '';
+        function applyWm(dataUrl) {
+          window.pdfWmImage = dataUrl;
           window.savePdfWmImage(window.pdfWmImage);
           window.updateWmImgHint();
+        }
+        var fr = new FileReader();
+        fr.onload = function () {
+          var raw = String(fr.result || '');
+          window.pdfWmImageName = f.name || '';
+          var img = new Image();
+          img.onload = function () {
+            var MAX = 1200;
+            var w = img.naturalWidth || img.width;
+            var h = img.naturalHeight || img.height;
+            if (!w || !h || w <= MAX) return applyWm(raw);
+            var c = document.createElement('canvas');
+            c.width = MAX;
+            c.height = Math.max(1, Math.round(h * (MAX / w)));
+            var ctx = c.getContext('2d');
+            if (!ctx) return applyWm(raw);
+            ctx.drawImage(img, 0, 0, c.width, c.height);
+            try { applyWm(c.toDataURL('image/png')); } catch (e) { applyWm(raw); }
+          };
+          img.onerror = function () { applyWm(raw); };
+          img.src = raw;
         };
         fr.readAsDataURL(f);
       });

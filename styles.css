@@ -261,27 +261,6 @@ html[data-theme="dark"] .icon-btn[aria-pressed="true"] { color: #06211f; }
 .dd-opt:hover { background: var(--surface-2); }
 .dd-opt.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 
-.search-field { grid-column: 1 / -1; }
-.search-wrap { position: relative; display: flex; align-items: center; }
-.search-wrap input { width: 100%; padding-left: 2.1rem; }
-.search-wrap::before {
-  content: "\2315";
-  position: absolute;
-  left: .7rem;
-  color: var(--muted);
-  font-size: .95rem;
-  pointer-events: none;
-}
-.search-wrap kbd {
-  position: absolute;
-  right: .5rem;
-  font: 600 .7rem/1 var(--mono);
-  color: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: .2rem .3rem;
-  background: var(--surface-2);
-}
 
 .checkrow { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
 .check { display: flex; align-items: center; gap: .35rem; font-size: .85rem; cursor: pointer; }
@@ -735,7 +714,6 @@ footer code { font-family: var(--mono); font-size: .95em; }
 .pdf-quickbar .icon-btn { flex: 1; padding: .34rem .5rem; font-size: .76rem; }
 .modal.modal-wide { max-width: 540px; }
 
-/* ---------------- PDF export form (upgraded) ---------------- */
 .pdf-modal {
   max-width: 640px;
   max-height: min(94vh, 900px);
@@ -1214,7 +1192,6 @@ body.pdf-render .paper-doc { padding: 0; }
   font-variant-ligatures: normal !important;
 }
 .pdf-cols { display: flex; gap: 12mm; position: relative; z-index: 1; }
-/* watermark: baked into every .pdf-page by buildPaper so html2canvas rasterizes it */
 .pdf-wm {
   position: absolute;
   left: 50%;
@@ -1258,9 +1235,6 @@ body.pdf-render .paper-doc { padding: 0; }
 }
 .pdf-file-row .icon-btn { flex: none; padding: .35rem .55rem; font-size: .76rem; }
 .pdf-col { width: 91mm; min-width: 0; }
-/* buildPaper already splits the paper into exact A4 pages, so the old
-   print-engine hints (forced breaks, multi-column flow) must not fight the
-   html2pdf slicer — they were the source of the blank half-pages */
 body.pdf-render .paper-cols,
 body.pdf-render .sol-cols { column-count: initial; }
 body.pdf-render .pq-keysec,
@@ -1343,12 +1317,9 @@ body.pdf-render .pdf-page:not(:last-child) {
   text-align: center;
   font-weight: 600;
 }
-/* four sets squeezed onto one key page */
 .pq-keyset-label { font-weight: 700; font-size: 11px; margin: 7px 0 3px; }
 .pq-keyset-label:first-child { margin-top: 0; }
 .pq-keytable-compact td { min-width: 42px; padding: 1px 5px; font-size: 10.5px; }
-/* per-page footer: sits in the reserved bottom padding, never affects
-   column measurement because it is absolutely positioned */
 .paper-foot {
   position: absolute;
   left: 8mm;
@@ -1405,7 +1376,6 @@ body.pdf-render .pdf-page:not(:last-child) {
 .psol-e p { margin: 0 0 .2rem; }
 .psol img { max-width: 100%; height: auto; }
 
-/* on-screen preview of the exact pages that will be rasterized into the PDF */
 .pdf-prev-back { z-index: 70; padding: .5rem; }
 .pdf-prev {
   display: flex;
@@ -1438,7 +1408,6 @@ body.pdf-render .pdf-page:not(:last-child) {
   margin: 0 auto .8rem;
   box-shadow: 0 2px 14px rgba(0, 0, 0, .45);
 }
-/* pages are 210mm (~794px) — shrink them onto narrow screens */
 @media (max-width: 860px) {
   .pdf-prev-scroll .pdf-page { zoom: .62; }
 }

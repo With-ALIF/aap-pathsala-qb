@@ -15,7 +15,7 @@
     var chips = window.$('chips');
     if (!chips) return;
     chips.innerHTML = '';
-    var labels = { q: 'খুঁজুন', ty: 'ধরন', db: 'ডেটাবেস', un: 'বিশ্ববিদ্যালয়', y: 'সাল', s: 'বিষয়', c: 'অধ্যায়', k: 'টপিক', n: 'অপশন', p: 'প্রশ্ন', e: 'ব্যাখ্যা', img: 'ছবি' };
+    var labels = { ty: 'ধরন', db: 'ডেটাবেস', un: 'বিশ্ববিদ্যালয়', y: 'সাল', s: 'বিষয়', c: 'অধ্যায়', k: 'টপিক', n: 'অপশন', p: 'প্রশ্ন', e: 'ব্যাখ্যা', img: 'ছবি' };
     Object.keys(labels).forEach(function (key) {
       if (window.MULTI_FACETS.indexOf(key) !== -1) {
         (window.state[key] || []).forEach(function (v) {
@@ -30,7 +30,7 @@
     });
   };
   window.addChip = function (key, val, shown_v, clearVal) {
-    var labels = { q: 'খুঁজুন', ty: 'ধরন', db: 'ডেটাবেস', un: 'বিশ্ববিদ্যালয়', y: 'সাল', s: 'বিষয়', c: 'অধ্যায়', k: 'টপিক', n: 'অপশন', p: 'প্রশ্ন', e: 'ব্যাখ্যা', img: 'ছবি' };
+    var labels = { ty: 'ধরন', db: 'ডেটাবেস', un: 'বিশ্ববিদ্যালয়', y: 'সাল', s: 'বিষয়', c: 'অধ্যায়', k: 'টপিক', n: 'অপশন', p: 'প্রশ্ন', e: 'ব্যাখ্যা', img: 'ছবি' };
     var chip = window.el('span', 'chip');
     chip.appendChild(document.createTextNode((labels[key] || key) + ': ' + shown_v + ' '));
     var x = window.el('button', null, '✕');
@@ -45,9 +45,6 @@
       window.state[key] = val === '' ? false : true;
       var chk = window.$(key === 'e' ? 'fE' : 'fImg');
       if (chk) chk.checked = window.state[key];
-    } else if (key === 'q') {
-      window.state.q = '';
-      window.$('q').value = '';
     } else if (key === 'p') {
       window.state.p = '';
     } else if (window.MULTI_FACETS.indexOf(key) !== -1) {

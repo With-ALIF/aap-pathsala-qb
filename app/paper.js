@@ -1,8 +1,6 @@
 (function () {
   'use strict';
   var BN_LETTERS = ['ক', 'খ', 'গ', 'ঘ', 'ঙ', 'চ', 'ছ', 'জ', 'ঝ', 'ঞ'];
-  // deterministic shuffle so the on-screen preview and the generated PDF use
-  // exactly the same question order for every set
   function seededShuffle(list, seed) {
     var arr = list.slice();
     var t = (Number(seed) || 1) >>> 0;
@@ -21,9 +19,9 @@
     return arr;
   }
   var MM = 96 / 25.4;
-  var PAGE_H = 296 * MM;          // a hair under A4 so the slice lands in the padding
+  var PAGE_H = 296 * MM;
   var PAD_TOP = 8 * MM;
-  var PAD_BOTTOM = 15 * MM;       // room for the absolute footer
+  var PAD_BOTTOM = 15 * MM;
   var MAX_H = PAGE_H - PAD_TOP - PAD_BOTTOM - 2 * MM;
 
   window.paperSubjects = function (rows) {
@@ -42,8 +40,6 @@
     return (window.DATMAP[sh] || {})[rec.p] || {};
   }
 
-  // stem line: number + question text. flex keeps the number glued to the
-  // first line even when the source HTML wraps its text in <p>/<div> blocks
   function stemNode(rec, i, full, cls) {
     var p = window.el('p', cls || 'pq-q');
     p.appendChild(window.el('span', 'pq-n', window.bnNum(i + 1) + '.'));
@@ -71,7 +67,6 @@
     return boxO;
   }
 
-  // question page item (no answers inline — they go to the key/solution pages)
   function questionNode(rec, i) {
     var full = fullOf(rec);
     var q = window.el('section', 'pq');
@@ -89,8 +84,6 @@
     return { opts: opts, idx: idx };
   }
 
-  // one entry of the separate solution section; returns null when there is
-  // nothing to show (no correct option and no explanation)
   function solutionNode(rec, i) {
     var full = fullOf(rec);
     var co = correctOption(rec, full);
@@ -142,23 +135,17 @@
     if (!(wmOp > 0)) wmOp = 0.1;
     var footL = String(meta.footerL || '').trim();
     var footR = String(meta.footerR || '').trim();
-    // breathing room between the header block and the first question; kept in
-    // JS so pagination can subtract it along with the measured header height
     var HEAD_GAP = 18;
     var box = window.$('paper');
     if (box) box.innerHTML = '';
     var doc = window.el('div', 'paper-doc');
     doc.style.fontSize = qSize + 'px';
-    // attach straight away: pagination measures real heights, and a detached
-    // tree reports offsetHeight/scrollHeight of 0
     if (box) box.appendChild(doc);
 
-    // ---------------- shared page helpers ----------------
     function newPage(topNode) {
       var page = window.el('div', 'pdf-page');
       page.style.fontSize = qSize + 'px';
       if (wmImg || wmText) {
-        // watermark first so the columns (z-index:1) paint above it
         var wm = window.el('div', wmImg ? 'pdf-wm pdf-wm-img' : 'pdf-wm', wmImg ? '' : wmText);
         if (wmImg) wm.style.backgroundImage = 'url("' + wmImg + '")';
         wm.style.opacity = String(wmOp);
@@ -179,14 +166,13 @@
       return { page: page, left: left, right: right };
     }
 
-    // measure nodes inside a real 91mm column, then remove them again
     function measure(nodes) {
       var probe = window.el('div', 'pdf-col');
       probe.style.cssText = 'position:absolute;left:-9999px;top:0;width:91mm;';
       doc.appendChild(probe);
       var out = nodes.map(function (node) {
         probe.appendChild(node);
-        var h = node.offsetHeight + 6; // section margin-bottom
+        var h = node.offsetHeight + 6;
         probe.removeChild(node);
         return { node: node, h: h };
       });
@@ -194,8 +180,6 @@
       return out;
     }
 
-    // fill each page as much as possible, then split its two columns as
-    // evenly as the heights allow (reading order stays top-down)
     function paginate(items, firstMaxH) {
       var pages = [], idx = 0, n = items.length;
       while (idx < n) {
@@ -251,22 +235,17 @@
       return h;
     }
 
-    // ---------------- header builder (per set) ----------------
     function makeHead(setLabel) {
       if (!(meta.title || meta.tutor || meta.subject || meta.marks || setLabel || meta.minutes)) return null;
       var head = window.el('header', 'paper-head');
       var h1 = window.el('h1', null, meta.title || 'নির্বাচিত প্রশ্নের পরীক্ষাপত্র');
       h1.style.fontSize = hSize + 'px';
       head.appendChild(h1);
-      // tutor name sits right under the (bigger) exam name, in the same size
-      // as the question text
       if (meta.tutor) {
         var tutor = window.el('p', 'paper-tutor', meta.tutor);
         tutor.style.fontSize = qSize + 'px';
         head.appendChild(tutor);
       }
-      // subtitle/title line: kept even when empty so the header spacing stays
-      // the same (an empty line shows as blank, per the requested behaviour)
       head.appendChild(window.el('p', 'paper-sub', meta.subject || ''));
       head.appendChild(window.el('div', 'head-rule'));
       var row = window.el('div', 'paper-meta-row');
@@ -280,7 +259,6 @@
       return head;
     }
 
-    // ---------------- question pages (one block per set) ----------------
     var sets = meta.sets === 4 ? 4 : 1;
     var labels = ['A', 'B', 'C', 'D'];
     var seed = Number(meta.seed) || 1;
@@ -296,7 +274,6 @@
     }
 
     if (withAns) {
-      // ---------------- answer keys ----------------
       function keyFor(order) {
         var key = [];
         order.forEach(function (rec, i) {
@@ -319,7 +296,6 @@
         return table;
       }
       if (sets > 1) {
-        // every set's key on ONE shared page
         var parts = setOrders.map(function (order, si) {
           return { label: labels[si], key: keyFor(order) };
         }).filter(function (part) { return part.key.length; });
@@ -340,7 +316,6 @@
         }
       }
 
-      // ---------------- solutions for the first set only ----------------
       var solNodes = [];
       setOrders[0].forEach(function (rec, i) {
         var node = solutionNode(rec, i);

@@ -1,1 +1,8 @@
 database-dump-raw-full.jsonl
+
+node_modules/
+.next/
+supabase-questions.csv
+.env*.local
+scripts/
+*.mjs

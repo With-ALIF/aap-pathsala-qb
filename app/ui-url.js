@@ -3,7 +3,6 @@
   window.syncURL = function () {
     var parts = [];
     if (window.state.p) parts.push('p=' + encodeURIComponent(window.state.p));
-    if (window.state.q) parts.push('q=' + encodeURIComponent(window.state.q));
     for (var i = 0; i < window.FACETS.length; i++) {
       var f = window.FACETS[i];
       if (window.MULTI_FACETS.indexOf(f) !== -1) {
@@ -29,7 +28,7 @@
   window.readURL = function () {
     var raw = location.hash.replace(/^#/, '');
     var params = new URLSearchParams(raw);
-    ['q', 'db', 'y', 'k', 'ty', 'n', 'p', 'sort'].forEach(function (k) {
+    ['db', 'y', 'k', 'ty', 'n', 'p', 'sort'].forEach(function (k) {
       window.state[k] = params.has(k) ? params.get(k) : (k === 'sort' ? 'default' : '');
     });
     window.MULTI_FACETS.forEach(function (f) {
@@ -40,7 +39,6 @@
     window.writeControls();
   };
   window.writeControls = function () {
-    if (window.$('q')) window.$('q').value = window.state.q;
     Object.keys(window.FACET_ID || {}).forEach(function (facet) {
       var sel = window.$(window.FACET_ID[facet]);
       if (sel && window.state[facet] !== undefined) sel.value = window.state[facet] || '';

@@ -26,7 +26,14 @@
     'app/events-actions.js',
     'app/init.js'
   ];
-  for (var i = 0; i < files.length; i++) {
-    document.write('<script src="' + files[i] + '"><\/script>');
+  var i = 0;
+  function next() {
+    if (i >= files.length) return;
+    var s = document.createElement('script');
+    s.src = files[i++];
+    s.onload = next;
+    s.onerror = next;
+    document.head.appendChild(s);
   }
+  next();
 })();

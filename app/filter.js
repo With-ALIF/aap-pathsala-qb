@@ -7,7 +7,6 @@
   };
   window.baseMatch = function (r) {
     if (window.state.p && String(r.p) !== window.state.p) return false;
-    if (window.state.q && r.__h.indexOf(window.state.q) === -1) return false;
     if (window.state.n && String(r.__n) !== window.state.n) return false;
     if (window.state.e && !r.e) return false;
     if (window.state.img && !r.img) return false;

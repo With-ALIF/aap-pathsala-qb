@@ -8,15 +8,11 @@
     }
     window.$('pdfNote').textContent = '';
     window.$('pdfNote').className = 'modal-note';
-    // restore the last-used settings so the fields don't have to be retyped
-    // on every export
     var opts = window.loadPdfOpts();
     window.applyPdfOpts(opts);
     window.updateSizeLabels();
     window.pdfWmImage = window.loadPdfWmImage();
     window.updateWmImgHint();
-    // one shuffle seed per modal session so preview and download match; a paper
-    // loaded from the saved list keeps its original seed for the next export
     window.pdfSeed = Number(window.pdfSeedOverride) || (Math.floor(Math.random() * 1000000000) + 1);
     window.pdfSeedOverride = 0;
     var tEl = window.$('pdfTime');
@@ -26,7 +22,6 @@
     window.$('pdfModal').hidden = false;
     window.$('pdfTitleIn').focus();
   };
-  // ---------------- pdf settings (the six input groups) ----------------
   window.loadPdfOpts = function () {
     try { return JSON.parse(localStorage.getItem('qb_pdf_opts') || '{}') || {}; } catch (e) { return {}; }
   };
@@ -61,7 +56,6 @@
     if (!(trans > 0) && Number(o.wmOpacity) > 0) trans = Math.round((1 - Number(o.wmOpacity)) * 100);
     if (oEl && trans > 0) oEl.value = String(trans);
   };
-  // the optional subtitle/title is persisted with the other options
   window.savePdfOpts = function () {
     function v(id) { var el = window.$(id); return el ? String(el.value || '').trim() : ''; }
     var qEl = window.$('pdfQSize'), hEl = window.$('pdfHSize'), opEl = window.$('pdfWmOp');
@@ -93,8 +87,6 @@
     lbl('pdfHSizeOut', 'pdfHSize', 'px');
     lbl('pdfWmOpOut', 'pdfWmOp', '%');
   };
-  // read every input in the modal into the meta object buildPaper consumes;
-  // returns null when a field fails validation (the error is shown in-modal)
   window.readPdfMeta = function (rows) {
     function v(id) { var el = window.$(id); return el ? String(el.value || '').trim() : ''; }
     var tRaw = v('pdfTime');
@@ -149,7 +141,6 @@
   window.saveLastDuration = function (v) {
     try { if (v) localStorage.setItem('qb_pdf_duration', v); } catch (e) {}
   };
-  // ---------------- watermark image (stored as a data URL) ----------------
   window.loadPdfWmImage = function () {
     try { return localStorage.getItem('qb_pdf_wmimg') || ''; } catch (e) { return ''; }
   };
@@ -200,9 +191,6 @@
     window.closePdf();
     window.generatePdf(rows, meta);
   };
-  // ---------------- on-screen preview ----------------
-  // builds the exact same pages generatePdf would rasterize (same meta), so
-  // what the user sees here is what lands in the PDF
   window.pdfPreview = function () {
     var rows = window.selRecs();
     if (!rows.length) {
@@ -245,35 +233,28 @@
     var scroll = window.$('pdfPrevScroll');
     if (scroll) scroll.innerHTML = '';
   };
+  function pdfRasterScale() {
+    var cores = navigator.hardwareConcurrency || 4;
+    return cores >= 8 ? 1.5 : 1.25;
+  }
   var PDF_OPT = {
     margin: [0, 0, 0, 0],
-    image: { type: 'jpeg', quality: 0.95 },
+    image: { type: 'jpeg', quality: 0.82 },
     enableLinks: false,
     html2canvas: {
-      // 2x = ~192 DPI for a 210mm page. At scale 1 the page was only ~96 DPI,
-      // so the question/solution images looked soft after being squeezed into
-      // the PDF. The canvas grows 2x in each direction, which is still far
-      // below the browser limits per A4 page.
-      scale: 2,
+      scale: pdfRasterScale(),
       useCORS: true,
-      // never taint the canvas: a single cross-origin image without CORS
-      // headers used to poison getImageData()/toDataURL() for every page after
-      // the first, which aborted the blob and dropped users into the print
-      // dialog instead of downloading a PDF
       allowTaint: false,
       logging: false,
       backgroundColor: '#ffffff',
-      imageTimeout: 15000,
-      // #paper is position:fixed at the viewport top. html2canvas otherwise
-      // adds the window's scroll offset to fixed elements, which shifted every
-      // page down by however far the user had scrolled before exporting.
+      imageTimeout: 8000,
       scrollX: 0,
       scrollY: 0
     },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: [] }
   };
-  var PDF_BLANK_INK = 40;
+  var PDF_BLANK_INK = 15;
   function pdfFontsSettled() {
     if (!document.fonts || !document.fonts.ready) return Promise.resolve();
     var jobs = [document.fonts.ready];
@@ -286,8 +267,6 @@
     });
     return Promise.all(jobs);
   }
-  // rasterize one .pdf-page on its own (~794x1122px canvas — far below the
-  // browser canvas-size limits that blanked the old one-shot render)
   function pdfPageCanvas(pageEl) {
     return pdfSvgToImg(pageEl).then(function () {
       var w = html2pdf().set(PDF_OPT).from(pageEl);
@@ -295,11 +274,6 @@
     });
   }
 
-  // KaTeX draws the stretchy radical (and other tall delimiters) as an inline
-  // <svg width="400em"> that CSS clips down to the radicand width. html2canvas
-  // silently drops that svg, so the PDF kept the overline but lost the √ hook.
-  // Bake each svg into a PNG at its measured size first; the page is otherwise
-  // untouched because the <img> occupies exactly the same box.
   function pdfSvgToImg(root) {
     if (!root || !window.XMLSerializer || !document.createElement) return Promise.resolve();
     var svgs = root.querySelectorAll('.katex svg');
@@ -317,7 +291,7 @@
       if (!vh) return resolve();
       var ratio = rect.width / rect.height;
       var cropW = vh * ratio;
-      var scale = 4;
+      var scale = 2;
       var cw = Math.max(1, Math.round(rect.width * scale));
       var ch = Math.max(1, Math.round(rect.height * scale));
       var txt = '<svg xmlns="http://www.w3.org/2000/svg" width="' + cw + '" height="' + ch +
@@ -345,12 +319,21 @@
       im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(txt);
     });
   }
-  // count sampled non-white pixels; -1 when the canvas is tainted
   function pdfCanvasInk(canvas) {
     try {
-      var data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+      var w = 240;
+      var h = 340;
+      var thumb = document.createElement('canvas');
+      thumb.width = w;
+      thumb.height = h;
+      var tctx = thumb.getContext('2d', { willReadFrequently: true });
+      if (!tctx) return -1;
+      tctx.fillStyle = '#ffffff';
+      tctx.fillRect(0, 0, w, h);
+      tctx.drawImage(canvas, 0, 0, w, h);
+      var data = tctx.getImageData(0, 0, w, h).data;
       var dark = 0;
-      for (var i = 0; i < data.length; i += 64) {
+      for (var i = 0; i < data.length; i += 4) {
         if (data[i] < 230 || data[i + 1] < 230 || data[i + 2] < 230) dark++;
       }
       return dark;
@@ -370,8 +353,6 @@
         if (attempt < 3) {
           return new Promise(function (res) { setTimeout(res, 150); }).then(once);
         }
-        // three blank renders in a row: ship the page when it clearly has
-        // content rather than failing the whole document into the print dialog
         if (pageEl.textContent.trim() || pageEl.querySelector('img, table')) return canvas;
         var err = new Error('পাতা ' + window.num(idx + 1) + ' রেন্ডার হয়নি');
         err.pdfPage = idx + 1;
@@ -380,10 +361,10 @@
     }
     return once();
   }
-  // top-aligned pad/crop to the A4 ratio so each page maps 1:1 onto a sheet
   function pdfFitCanvas(src) {
     var w = src.width;
     var h = Math.floor(w * 297 / 210);
+    if (src.height === h) return src;
     var c = document.createElement('canvas');
     c.width = w;
     c.height = h;
@@ -394,33 +375,42 @@
     return c;
   }
   function pdfPagesToBlob(pages) {
-    var master = null;
-    var chain = Promise.resolve();
-    Array.prototype.forEach.call(pages, function (pageEl, i) {
-      chain = chain.then(function () {
-        window.setSelBusy(true, 'পেজ ' + window.num(i + 1) + '/' + window.num(pages.length) + ' রেন্ডার…');
-        return pdfPageChecked(pageEl, i, pages.length).then(function (canvas) {
+    var list = Array.prototype.slice.call(pages);
+    if (!list.length) throw new Error('PDF তৈরি হয়নি');
+    var total = list.length;
+    window.setSelBusy(true, 'পেজ ' + window.num(1) + '/' + window.num(total) + ' রেন্ডার…');
+    return pdfPageChecked(list[0], 0, total).then(function (canvas0) {
+      var fitted0 = pdfFitCanvas(canvas0);
+      var w0 = html2pdf().set(PDF_OPT).from(fitted0);
+      return w0.to('pdf').then(function () { return w0.prop.pdf; });
+    }).then(function (master) {
+      var rest = list.slice(1);
+      var jpegs = new Array(rest.length);
+      var lanes = (navigator.hardwareConcurrency || 4) >= 8 ? 2 : 1;
+      var cursor = 0;
+      var done = 1;
+      function worker() {
+        if (cursor >= rest.length) return Promise.resolve();
+        var i = cursor++;
+        return pdfPageChecked(rest[i], i + 1, total).then(function (canvas) {
           var fitted = pdfFitCanvas(canvas);
-          if (!master) {
-            // first page goes through the worker so the jsPDF doc is built
-            // exactly as before; its canvas is one A4 slice (1:1, no tail page)
-            var w0 = html2pdf().set(PDF_OPT).from(fitted);
-            return w0.to('pdf').then(function () { master = w0.prop.pdf; });
-          }
-          master.addPage();
-          master.addImage(fitted.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 210, 297);
+          jpegs[i] = fitted.toDataURL('image/jpeg', 0.82);
+          done++;
+          window.setSelBusy(true, 'পেজ ' + window.num(done) + '/' + window.num(total) + ' রেন্ডার…');
+          return worker();
         });
+      }
+      var jobs = [];
+      for (var li = 0; li < Math.min(lanes, rest.length); li++) jobs.push(worker());
+      return Promise.all(jobs).then(function () {
+        for (var i = 0; i < jpegs.length; i++) {
+          master.addPage();
+          master.addImage(jpegs[i], 'JPEG', 0, 0, 210, 297);
+        }
+        return master.output('blob');
       });
     });
-    return chain.then(function () {
-      if (!master) throw new Error('PDF তৈরি হয়নি');
-      return master.output('blob');
-    });
   }
-  // ---------------- saving ----------------
-  // a blob download started from a promise chain is dropped by iOS Safari and
-  // most in-app browsers (WhatsApp / Facebook / Instagram), so those users get
-  // a dialog with a real link they tap themselves
   function pdfNeedsManualTap() {
     var ua = navigator.userAgent || '';
     if (/iPhone|iPad|iPod/i.test(ua)) return true;
@@ -441,14 +431,12 @@
   }
   function scheduleRevoke(url) {
     setTimeout(function () {
-      // a newer document has since replaced this one
       if (saveUrl === url) revokeSaveUrl();
     }, 60000);
   }
   window.closePdfSave = function () {
     var modal = window.$('pdfSaveModal');
     if (modal) modal.hidden = true;
-    // the browser may still be reading the blob, so free it later
     if (saveUrl) scheduleRevoke(saveUrl);
   };
   window.openPdfSave = function (blob, name) {
@@ -474,13 +462,11 @@
       window.$('pdfSaveName').textContent = name + (blob && blob.size ? ' · ' + pdfSizeLabel(blob.size) : '');
     }
     if (!modal) {
-      // markup missing (older build): fall back to a plain programmatic save
       var plain = window.downloadBlob(blob, name);
       window.flashNote(plain ? 'PDF সরাসরি নামানো হয়েছে' : 'PDF তৈরি হয়েছে, কিন্তু ডাউনলোড শুরু হয়নি');
       return;
     }
     if (!url) {
-      // no Blob URLs at all (very old browser): msSaveOrOpenBlob may still work
       var legacy = window.downloadBlob(blob, name);
       if (window.$('pdfSaveHint')) {
         window.$('pdfSaveHint').textContent = legacy
@@ -509,8 +495,6 @@
     try { if (link) link.focus(); } catch (e) {}
     window.flashNote(auto ? 'PDF ডাউনলোড শুরু হয়েছে' : 'PDF তৈরি হয়েছে — “PDF নামান” চাপুন');
   };
-  // direct generation failed: say why instead of silently dumping the user
-  // into a print dialog with no explanation
   window.openPdfError = function (message) {
     revokeSaveUrl();
     var modal = window.$('pdfSaveModal');
@@ -535,10 +519,6 @@
     if (modal) modal.hidden = false;
     else window.flashNote('PDF তৈরি করা যায়নি: ' + message);
   };
-  // shared build pipeline: loads shards, lays out the paginated paper and
-  // resolves with the ready #paper .paper-doc node (fonts + images settled).
-  // Both generatePdf and pdfPreview go through this so the preview always
-  // matches the downloaded file.
   window.buildPdfNode = function (rows, meta) {
     var needed = window.pendingFor(rows);
     window.setSelBusy(true, 'শার্ড লোড হচ্ছে…');
@@ -550,36 +530,20 @@
       var container = window.$('paper');
       if (!container) throw new Error('প্রিন্ট এলাকা পাওয়া যায়নি');
       container.innerHTML = '';
-      // the paper has to be laid out before it is built: pagination measures
-      // column heights, and a display:none node measures as zero
       document.body.classList.add('pdf-render');
       var fontPromise = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
-      var node = null;                 // shared by every step below
-      // buildPaper paginates by measuring, so it must run when fonts and
-      // images are already settled — otherwise the pages grow after they
-      // have been counted and the tail spills onto near-empty pages.
-      var passes = 2, i = 0;
+      var node = null;
       function buildPass(wait) {
         node = window.buildPaper(rows, meta);
         window.eagerImgs(node);
         return window.imagesReady(node, wait);
       }
       return fontPromise.then(function () {
-        return buildPass(2500);
+        return buildPass(1500);
       }).then(function () {
-        return (i++ < passes - 1) ? buildPass(1000) : null;
-      }).then(function () {
-        return new Promise(function (res) { setTimeout(res, 300); });
-      }).then(function () {
-        // KaTeX fonts start loading while buildPaper renders math — after the
-        // first fonts.ready — so wait again or glyphs can paint blank
         return pdfFontsSettled();
       }).then(function () {
-        // Re-paginate once every math face is in. The earlier passes measure
-        // against fallback font metrics, so they pack more questions onto a
-        // page than actually fit; when the real glyphs load the columns grow
-        // and the tail gets clipped at the A4 boundary.
-        return buildPass(1500).then(pdfFontsSettled);
+        return buildPass(1000).then(pdfFontsSettled);
       }).then(function () {
         return node;
       });
@@ -599,20 +563,13 @@
       if (typeof html2pdf !== 'function') throw new Error('html2pdf লাইব্রেরি অনুপস্থিত');
       var pages = node.querySelectorAll('.pdf-page');
       if (!pages.length) throw new Error('পাতা তৈরি হয়নি');
-      // each .pdf-page is rasterized on its own small canvas and glued into
-      // one jsPDF doc — one giant multi-page canvas used to hit the browser
-      // canvas-size limit and come back silently white
       return pdfPagesToBlob(pages).then(function (blob) {
-        // the dialog owns the download so it also works where a programmatic
-        // blob click is blocked (iOS, in-app browsers, repeated auto-saves)
         window.setSelBusy(false);
         window.openPdfSave(blob, filename);
       });
     }).catch(function (err) {
       console.error('[pdf] generate failed', err);
       var reason = err && err.message ? err.message : String(err);
-      // explain the failure first (the dialog is hidden from print media), then
-      // keep the print dialog as a last resort while #paper is still mounted
       try { window.openPdfError(reason); } catch (e2) {}
       window.flashNote('সরাসরি PDF তৈরি হয়নি — প্রিন্ট ডায়ালগ খোলা হচ্ছে: ' + reason);
       try {
@@ -628,8 +585,6 @@
       window.setSelBusy(false);
       var container = window.$('paper');
       if (container) container.innerHTML = '';
-      // an html2canvas failure can leave its invisible overlay behind, which
-      // would swallow every click on the page
       var stray = document.querySelectorAll('.html2pdf__overlay');
       for (var si = 0; si < stray.length; si++) {
         if (stray[si].parentNode) stray[si].parentNode.removeChild(stray[si]);

@@ -1,14 +1,6 @@
 (function () {
   'use strict';
   window.bindFilterEvents = function () {
-    var qEl = window.$('q');
-    if (qEl) {
-      qEl.addEventListener('input', window.debounce(function () {
-        window.state.p = '';
-        window.state.q = qEl.value;
-        window.recompute();
-      }, 220));
-    }
     Object.keys(window.FACET_ID).forEach(function (facet) {
       var id = window.FACET_ID[facet];
       var el = window.$(id);

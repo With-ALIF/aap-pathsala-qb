@@ -41,7 +41,7 @@
   window.DATMAP = {};
   window.pendIdx = {};
   window.pendDat = {};
-  window.state = { q: '', db: '', un: [], y: '', s: [], c: [], k: '', ty: '', n: '', p: '', sort: 'default', e: false, img: false, answers: true };
+  window.state = { db: '', un: [], y: '', s: [], c: [], k: '', ty: '', n: '', p: '', sort: 'default', e: false, img: false, answers: true };
   window.results = [];
   window.shown = 0;
 window.tab = 'list';
