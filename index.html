@@ -17,11 +17,12 @@
       <h1>প্রশ্নব্যাংক</h1>
       <span class="sub" id="brandSub">loading…</span>
     </div>
-    <button class="icon-btn" id="answersBtn" aria-pressed="true" title="উত্তর দেখান/লুকান (a)">উত্তর লুকান</button>
-    <button class="icon-btn" id="shuffleBtn" title="বর্তমান ফলাফল এলোমেলো করুন">এলোমেলো</button>
-    <button class="icon-btn" id="csvBtn" title="বর্তমান ফলাফল CSV ফাইলে নামান">CSV</button>
-    <button class="icon-btn" id="resetBtn" title="সব ফিল্টার মুছুন">রিসেট</button>
-    <button class="icon-btn" id="themeBtn" title="থিম বদলান">থিম</button>
+    <button class="icon-btn" id="answersBtn" aria-pressed="true" title="উত্তর দেখান/লুকান (a)"><span class="ic" id="answersIco" data-ic="eyeOff"></span><span id="answersLbl">উত্তর লুকান</span></button>
+    <button class="icon-btn" id="shuffleBtn" title="বর্তমান ফলাফল এলোমেলো করুন"><span class="ic" data-ic="shuffle"></span>এলোমেলো</button>
+    <button class="icon-btn" id="csvBtn" title="বর্তমান ফলাফল CSV ফাইলে নামান"><span class="ic" data-ic="download"></span>CSV</button>
+    <button class="icon-btn" id="papersBtn" title="সেভ করা প্রশ্ন সমূহ — আবার PDF তৈরি বা এডিট করুন"><span class="ic" data-ic="bookmark"></span>সেভ প্রশ্ন সমূহ <span class="pill" id="papersCount">০</span></button>
+    <button class="icon-btn" id="resetBtn" title="সব ফিল্টার মুছুন"><span class="ic" data-ic="rotateCcw"></span>রিসেট</button>
+    <button class="icon-btn icon-only" id="themeBtn" title="থিম বদলান" aria-label="থিম বদলান"><span class="ic" id="themeIco" data-ic="moon"></span></button>
   </div>
 </header>
 
@@ -232,87 +233,171 @@
 </div>
 
 <div class="modal-back" id="pdfModal" hidden>
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pdfHead">
-    <h3 id="pdfHead">পরীক্ষাপত্র তৈরি (PDF)</h3>
-    <p class="modal-hint">
-      হেডারের লেখা নিজের মতো বসান — খালি রাখলে ওই অংশ ফাঁকা থাকবে।
-      <span id="pdfAvail"></span>
-    </p>
-    <div class="pdf-group">
-      <label class="modal-label" for="pdfTitleIn">পরীক্ষার নাম</label>
-      <input type="text" id="pdfTitleIn" placeholder="নির্বাচিত প্রশ্নের পরীক্ষাপত্র" autocomplete="off">
-    </div>
-    <div class="pdf-two-col">
-      <div class="pdf-group">
-        <label class="modal-label" for="pdfTutor">শিক্ষকের নাম <span class="modal-opt">(ঐচ্ছিক)</span></label>
-        <input type="text" id="pdfTutor" placeholder="" autocomplete="off">
+  <div class="modal pdf-modal" role="dialog" aria-modal="true" aria-labelledby="pdfHead">
+    <div class="pdf-form-head">
+      <div class="pdf-head-row">
+        <span class="pdf-head-ico"><span class="ic" data-ic="fileText"></span></span>
+        <div class="pdf-head-txt">
+          <h3 id="pdfHead">পরীক্ষাপত্র তৈরি <span class="pdf-head-badge">PDF</span></h3>
+          <p class="pdf-head-sub"><span id="pdfAvail"></span></p>
+        </div>
       </div>
-      <div class="pdf-group">
-        <label class="modal-label" for="pdfSubj">টাইটেল <span class="modal-opt">(ঐচ্ছিক)</span></label>
-        <input type="text" id="pdfSubj" placeholder="যেমন: রসায়ন সাজেশন" autocomplete="off">
+      <div class="pdf-quickbar">
+        <button type="button" class="icon-btn" id="pdfSavePaper"><span class="ic" data-ic="bookmark"></span>প্রশ্ন সেভ করুন</button>
+        <button type="button" class="icon-btn" id="pdfPapersBtn"><span class="ic" data-ic="folderOpen"></span>সেভ করা প্রশ্ন <span class="pill" id="pdfPapersCount">০</span></button>
       </div>
     </div>
-    <div class="pdf-two-col">
-      <div class="pdf-group">
-        <label class="modal-label" for="pdfMarks">পূর্ণমান</label>
-        <input type="text" id="pdfMarks" placeholder="৮০" autocomplete="off">
+
+    <div class="pdf-form-body">
+      <section class="pdf-sec">
+        <div class="pdf-sec-head">
+          <span class="pdf-sec-ico"><span class="ic" data-ic="type"></span></span>
+          <div>
+            <h4>পরীক্ষার তথ্য</h4>
+            <p>পাতার হেডারে যেসব লেখা বসবে</p>
+          </div>
+        </div>
+        <div class="pdf-field">
+          <label class="modal-label" for="pdfTitleIn">পরীক্ষার নাম</label>
+          <input type="text" id="pdfTitleIn" placeholder="নির্বাচিত প্রশ্নের পরীক্ষাপত্র" autocomplete="off">
+        </div>
+        <div class="pdf-two-col">
+          <div class="pdf-field">
+            <label class="modal-label" for="pdfTutor">শিক্ষকের নাম <span class="modal-opt">ঐচ্ছিক</span></label>
+            <input type="text" id="pdfTutor" placeholder="" autocomplete="off">
+          </div>
+          <div class="pdf-field">
+            <label class="modal-label" for="pdfSubj">টাইটেল <span class="modal-opt">ঐচ্ছিক</span></label>
+            <input type="text" id="pdfSubj" placeholder="যেমন: রসায়ন সাজেশন" autocomplete="off">
+          </div>
+        </div>
+        <div class="pdf-two-col">
+          <div class="pdf-field">
+            <label class="modal-label" for="pdfMarks">পূর্ণমান</label>
+            <input type="text" id="pdfMarks" placeholder="৮০" autocomplete="off">
+          </div>
+          <div class="pdf-field">
+            <label class="modal-label" for="pdfTime">সময়</label>
+            <input type="text" id="pdfTime" placeholder="৬০ মিনিট" autocomplete="off" spellcheck="false">
+          </div>
+        </div>
+        <p class="modal-sub" id="pdfTimeHint"></p>
+      </section>
+
+      <section class="pdf-sec">
+        <div class="pdf-sec-head">
+          <span class="pdf-sec-ico"><span class="ic" data-ic="listChecks"></span></span>
+          <div>
+            <h4>প্রশ্ন ও উত্তর</h4>
+            <p>সেট, ক্রম ও উত্তরের ধরন</p>
+          </div>
+        </div>
+        <label class="pdf-toggle">
+          <span class="pdf-toggle-main">
+            <span class="pdf-toggle-title">৪টি সেট (A, B, C, D)</span>
+            <span class="pdf-toggle-sub">প্রতি সেটে আলাদা ক্রম · উত্তর তালিকা এক পাতায় · সমাধান শুধু সেট A</span>
+          </span>
+          <input type="checkbox" id="pdfSets">
+          <span class="pdf-toggle-ui" aria-hidden="true"></span>
+        </label>
+        <div class="pdf-field pdf-field-gap">
+          <label class="modal-label" for="pdfAns">PDF টাইপ</label>
+          <select id="pdfAns">
+            <option value="yes">উত্তরসহ — উত্তর তালিকা ও সমাধানসহ</option>
+            <option value="no">উত্তর ছাড়া — শুধু প্রশ্ন</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="pdf-sec">
+        <div class="pdf-sec-head">
+          <span class="pdf-sec-ico"><span class="ic" data-ic="sliders"></span></span>
+          <div>
+            <h4>লেআউট ও সাইজ</h4>
+            <p>PDF-এ লেখার আকার নিয়ন্ত্রণ করুন</p>
+          </div>
+        </div>
+        <div class="pdf-two-col">
+          <div class="pdf-slider">
+            <label class="modal-label" for="pdfQSize">প্রশ্ন সাইজ <output id="pdfQSizeOut">১১px</output></label>
+            <input type="range" id="pdfQSize" min="8" max="24" step="1" value="11">
+            <span class="pdf-scale"><span>ছোট</span><span>বড়</span></span>
+          </div>
+          <div class="pdf-slider">
+            <label class="modal-label" for="pdfHSize">হেডার সাইজ <output id="pdfHSizeOut">২৪px</output></label>
+            <input type="range" id="pdfHSize" min="14" max="40" step="1" value="24">
+            <span class="pdf-scale"><span>ছোট</span><span>বড়</span></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="pdf-sec">
+        <div class="pdf-sec-head">
+          <span class="pdf-sec-ico"><span class="ic" data-ic="droplet"></span></span>
+          <div>
+            <h4>ওয়াটারমার্ক</h4>
+            <p>সব পাতায় হালকা করে বসবে</p>
+          </div>
+        </div>
+        <div class="pdf-field">
+          <label class="modal-label" for="pdfWm">টেক্সট <span class="modal-opt">ঐচ্ছিক</span></label>
+          <input type="text" id="pdfWm" placeholder="AAP Pathshala" autocomplete="off">
+        </div>
+        <div class="pdf-field pdf-field-gap">
+          <label class="modal-label" for="pdfWmOp">ট্রান্সপারেন্সি <output id="pdfWmOpOut">৯০%</output></label>
+          <input type="range" id="pdfWmOp" min="50" max="98" step="1" value="90">
+          <span class="pdf-scale"><span>গাঢ়</span><span>হালকা</span></span>
+        </div>
+        <div class="pdf-field pdf-field-gap">
+          <span class="modal-label">ছবি <span class="modal-opt">ঐচ্ছিক</span></span>
+          <div class="pdf-file-row pdf-upload">
+            <span class="pdf-upload-ico"><span class="ic" data-ic="image"></span></span>
+            <div class="pdf-upload-main">
+              <div class="pdf-upload-line">
+                <input type="file" id="pdfWmImg" accept="image/*" class="pdf-file-input" aria-label="ওয়াটারমার্ক ছবি বাছুন">
+                <label class="pdf-pick" for="pdfWmImg"><span class="ic" data-ic="upload"></span>ছবি বাছুন</label>
+                <span class="pdf-pick-name" id="pdfWmImgName">কোনো ছবি নেই</span>
+              </div>
+              <p class="modal-sub" id="pdfWmImgHint"></p>
+            </div>
+            <button type="button" class="icon-btn" id="pdfWmImgClear">মুছুন</button>
+          </div>
+          <div class="pdf-wm-prev" id="pdfWmImgPrevWrap" hidden>
+            <img id="pdfWmImgPrev" alt="ওয়াটারমার্ক ছবির পূর্বরূপ">
+            <span>এই ছবিটি ওয়াটারমার্ক হিসেবে ব্যবহৃত হবে</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="pdf-sec">
+        <div class="pdf-sec-head">
+          <span class="pdf-sec-ico"><span class="ic" data-ic="type"></span></span>
+          <div>
+            <h4>ফুটার</h4>
+            <p>প্রতিটি পাতার নিচে বাম ও ডান দিকে</p>
+          </div>
+        </div>
+        <div class="pdf-two-col">
+          <div class="pdf-field">
+            <label class="modal-label" for="pdfFootL">বাম দিকের লেখা</label>
+            <input type="text" id="pdfFootL" placeholder="বাম" autocomplete="off">
+          </div>
+          <div class="pdf-field">
+            <label class="modal-label" for="pdfFootR">ডান দিকের লেখা</label>
+            <input type="text" id="pdfFootR" placeholder="ডান" autocomplete="off">
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="pdf-form-foot">
+      <div class="modal-actions">
+        <button class="icon-btn" id="pdfPreviewBtn"><span class="ic" data-ic="eye"></span>প্রিভিউ</button>
+        <button class="icon-btn" id="pdfCancel"><span class="ic" data-ic="x"></span>বাতিল</button>
+        <button class="icon-btn primary" id="pdfGo"><span class="ic" data-ic="download"></span>PDF নামান</button>
       </div>
-      <div class="pdf-group">
-        <label class="modal-label" for="pdfTime">সময়</label>
-        <input type="text" id="pdfTime" placeholder="৬০ মিনিট" autocomplete="off" spellcheck="false">
-      </div>
+      <p class="modal-note" id="pdfNote"></p>
     </div>
-    <p class="modal-sub" id="pdfTimeHint"></p>
-    <div class="pdf-group">
-      <label class="check"><input type="checkbox" id="pdfSets"> ৪টি সেট (A, B, C, D) — প্রতি সেটে প্রশ্ন এলোমেলো</label>
-    </div>
-    <hr class="pdf-sep">
-    <div class="pdf-group">
-      <label class="modal-label" for="pdfAns">PDF টাইপ</label>
-      <select id="pdfAns">
-        <option value="yes">উত্তরসহ — উত্তর তালিকা ও সমাধানসহ</option>
-        <option value="no">উত্তর ছাড়া — শুধু প্রশ্ন</option>
-      </select>
-    </div>
-    <div class="pdf-two-col">
-      <div class="pdf-group">
-        <label class="modal-label" for="pdfQSize">প্রশ্ন সাইজ <output id="pdfQSizeOut">১১px</output></label>
-        <input type="range" id="pdfQSize" min="8" max="24" step="1" value="11">
-      </div>
-      <div class="pdf-group">
-        <label class="modal-label" for="pdfHSize">হেডার সাইজ <output id="pdfHSizeOut">২৪px</output></label>
-        <input type="range" id="pdfHSize" min="14" max="40" step="1" value="24">
-      </div>
-    </div>
-    <div class="pdf-group">
-      <label class="modal-label" for="pdfWm">ওয়াটারমার্ক টেক্সট <span class="modal-opt">(ঐচ্ছিক)</span></label>
-      <input type="text" id="pdfWm" placeholder="AAP Pathshala" autocomplete="off">
-      <div class="pdf-sub-group">
-        <label class="modal-label" for="pdfWmOp">ট্রান্সপারেন্সি <output id="pdfWmOpOut">৯০%</output></label>
-        <input type="range" id="pdfWmOp" min="50" max="98" step="1" value="90">
-      </div>
-    </div>
-    <div class="pdf-group">
-      <label class="modal-label" for="pdfWmImg">ওয়াটারমার্ক ছবি <span class="modal-opt">(ঐচ্ছিক)</span></label>
-      <div class="pdf-file-row">
-        <input type="file" id="pdfWmImg" accept="image/*">
-        <button type="button" class="icon-btn" id="pdfWmImgClear">মুছুন</button>
-      </div>
-      <p class="modal-sub" id="pdfWmImgHint"></p>
-    </div>
-    <div class="pdf-group">
-      <label class="modal-label">ফুটার <span class="modal-opt">(ঐচ্ছিক)</span></label>
-      <div class="pdf-two-col">
-        <input type="text" id="pdfFootL" placeholder="বাম" autocomplete="off">
-        <input type="text" id="pdfFootR" placeholder="ডান" autocomplete="off">
-      </div>
-    </div>
-    <div class="modal-actions">
-      <button class="icon-btn" id="pdfPreviewBtn">প্রিভিউ দেখুন</button>
-      <button class="icon-btn primary" id="pdfGo">PDF নামান</button>
-      <button class="icon-btn" id="pdfCancel">বাতিল</button>
-    </div>
-    <p class="modal-note" id="pdfNote"></p>
   </div>
 </div>
 
@@ -343,6 +428,40 @@
       <button class="icon-btn" id="pdfSaveClose" type="button">বন্ধ</button>
     </div>
     <p class="modal-note" id="pdfSaveNote"></p>
+  </div>
+</div>
+
+<div class="modal-back" id="paperSaveModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="paperSaveHead">
+    <h3 id="paperSaveHead">প্রশ্ন সেভ করুন</h3>
+    <p class="modal-hint">
+      প্রশ্নের সিলেকশন ও PDF-এর সব সেটিংস এই ব্রাউজারেই সেভ থাকবে।
+      পরে এক ক্লিকে একই PDF নামাতে বা এডিট করে নতুন PDF বানাতে পারবেন।
+    </p>
+    <div class="pdf-group">
+      <label class="modal-label" for="paperSaveName">নাম</label>
+      <input type="text" id="paperSaveName" placeholder="যেমন: রসায়ন ১ম পত্র — সেট এ" autocomplete="off" maxlength="80">
+    </div>
+    <p class="modal-sub" id="paperSaveInfo"></p>
+    <div class="modal-actions">
+      <button class="icon-btn primary" id="paperSaveGo" type="button">সেভ করুন</button>
+      <button class="icon-btn" id="paperSaveCancel" type="button">বাতিল</button>
+    </div>
+    <p class="modal-note" id="paperSaveNote"></p>
+  </div>
+</div>
+
+<div class="modal-back" id="papersModal" hidden>
+  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="papersHead">
+    <h3 id="papersHead">সেভ করা প্রশ্ন সমূহ</h3>
+    <p class="modal-hint">
+      সেভ করা প্রশ্ন থেকে সরাসরি PDF নামান, অথবা প্রশ্ন বাছাই ও সেটিংস লোড করে এডিট করুন।
+    </p>
+    <div class="saved-list" id="savedList"></div>
+    <div class="modal-actions">
+      <button class="icon-btn" id="papersClose" type="button">বন্ধ</button>
+    </div>
+    <p class="modal-note">সব সেভ করা প্রশ্ন শুধু এই ব্রাউজারে থাকে — অন্য ব্রাউজার/ডিভাইসে দেখা যাবে না।</p>
   </div>
 </div>
 

@@ -7,6 +7,7 @@
       return;
     }
     window.$('pdfNote').textContent = '';
+    window.$('pdfNote').className = 'modal-note';
     // restore the last-used settings so the fields don't have to be retyped
     // on every export
     var opts = window.loadPdfOpts();
@@ -14,12 +15,14 @@
     window.updateSizeLabels();
     window.pdfWmImage = window.loadPdfWmImage();
     window.updateWmImgHint();
-    // one shuffle seed per modal session so preview and download match
-    window.pdfSeed = Math.floor(Math.random() * 1000000000) + 1;
+    // one shuffle seed per modal session so preview and download match; a paper
+    // loaded from the saved list keeps its original seed for the next export
+    window.pdfSeed = Number(window.pdfSeedOverride) || (Math.floor(Math.random() * 1000000000) + 1);
+    window.pdfSeedOverride = 0;
     var tEl = window.$('pdfTime');
     if (tEl && !tEl.value) tEl.value = window.loadLastDuration();
     window.updateDurationHint();
-    window.$('pdfAvail').textContent = 'নির্বাচিত ' + window.num(rows.length) + 'টি প্রশ্ন দিয়ে একটি সম্পূর্ণ পরীক্ষাপত্র তৈরি হবে।';
+    window.$('pdfAvail').textContent = 'নির্বাচিত ' + window.bnNum(rows.length) + 'টি প্রশ্ন দিয়ে একটি সম্পূর্ণ পরীক্ষাপত্র তৈরি হবে।';
     window.$('pdfModal').hidden = false;
     window.$('pdfTitleIn').focus();
   };
@@ -31,7 +34,7 @@
     o = o || {};
     function setTxt(id, v) {
       var el = window.$(id);
-      if (el && v != null && v !== '') el.value = String(v);
+      if (el && v != null) el.value = String(v);
     }
     setTxt('pdfTitleIn', o.title);
     setTxt('pdfTutor', o.tutor);
@@ -40,10 +43,15 @@
     setTxt('pdfWm', o.watermark);
     setTxt('pdfFootL', o.footerL);
     setTxt('pdfFootR', o.footerR);
+    if (o.minutes != null) {
+      var tEl = window.$('pdfTime');
+      var mins = Number(o.minutes);
+      if (tEl) tEl.value = mins > 0 ? window.durationLabel(mins) : '';
+    }
     var ans = window.$('pdfAns');
     if (ans) ans.value = o.answers === false ? 'no' : 'yes';
     var setsEl = window.$('pdfSets');
-    if (setsEl) setsEl.checked = !!o.sets;
+    if (setsEl) setsEl.checked = (o.sets === 4 || o.sets === true);
     var qEl = window.$('pdfQSize');
     if (qEl && Number(o.qSize) > 0) qEl.value = String(o.qSize);
     var hEl = window.$('pdfHSize');
@@ -93,6 +101,7 @@
     var mins = window.parseDuration(tRaw);
     if (tRaw && !mins) {
       window.$('pdfNote').textContent = 'সময়টা বোঝা যায়নি — যেমন "৬০ মিনিট", "1 ঘণ্টা", "90 min" লিখুন।';
+      window.$('pdfNote').className = 'modal-note modal-err';
       var tEl = window.$('pdfTime');
       if (tEl) tEl.focus();
       return null;
@@ -152,10 +161,32 @@
   };
   window.updateWmImgHint = function () {
     var hint = window.$('pdfWmImgHint');
-    if (!hint) return;
-    hint.textContent = window.pdfWmImage
-      ? 'ছবিটি সব পাতায় ওয়াটারমার্ক হিসেবে বসবে (টেক্সট ওয়াটারমার্কের বদলে)।'
-      : 'ছবি দিলে সব পাতায় ওয়াটারমার্ক হিসেবে বসবে; না দিলে টেক্সট ওয়াটারমার্ক ব্যবহার হবে।';
+    if (hint) {
+      hint.textContent = window.pdfWmImage
+        ? 'ছবিটি সব পাতায় ওয়াটারমার্ক হিসেবে বসবে (টেক্সট ওয়াটারমার্কের বদলে)।'
+        : 'ছবি দিলে সব পাতায় ওয়াটারমার্ক হিসেবে বসবে; না দিলে টেক্সট ওয়াটারমার্ক ব্যবহার হবে।';
+    }
+    var name = window.$('pdfWmImgName');
+    if (name) {
+      name.textContent = window.pdfWmImage
+        ? (window.pdfWmImageName || 'ওয়াটারমার্ক ছবি যুক্ত আছে')
+        : 'কোনো ছবি নেই';
+    }
+    var wrap = window.$('pdfWmImgPrevWrap');
+    var prev = window.$('pdfWmImgPrev');
+    if (wrap && prev) {
+      if (window.pdfWmImage) {
+        prev.src = window.pdfWmImage;
+        wrap.removeAttribute('hidden');
+      } else {
+        prev.removeAttribute('src');
+        wrap.setAttribute('hidden', '');
+      }
+    }
+    var box = document.querySelector('#pdfModal .pdf-upload');
+    if (box) box.classList.toggle('has-img', !!window.pdfWmImage);
+    var clear = window.$('pdfWmImgClear');
+    if (clear) clear.disabled = !window.pdfWmImage;
   };
   window.closePdf = function () {
     window.$('pdfModal').hidden = true;

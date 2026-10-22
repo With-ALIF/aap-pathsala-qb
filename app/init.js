@@ -10,6 +10,8 @@
       var a = localStorage.getItem('qb-answers');
       if (a !== null) window.state.answers = a === '1';
     } catch (e) {}
+    if (window.hydrateIcons) window.hydrateIcons(document);
+    if (window.updateThemeIcon) window.updateThemeIcon();
     window.applyAnswers();
     if (window.$('brandSub')) window.$('brandSub').textContent = window.num(window.M.total) + 'টি প্রশ্ন · ' + window.M.shards + ' শার্ড';
     if (window.$('srcTotal')) window.$('srcTotal').textContent = window.num(window.M.total);

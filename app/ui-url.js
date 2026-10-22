@@ -65,7 +65,9 @@
     var btn = window.$('answersBtn');
     if (btn) {
       btn.setAttribute('aria-pressed', String(window.state.answers));
-      btn.textContent = window.state.answers ? 'উত্তর লুকান' : 'উত্তর দেখান';
+      var lbl = window.$('answersLbl');
+      if (lbl) lbl.textContent = window.state.answers ? 'উত্তর লুকান' : 'উত্তর দেখান';
+      window.setIcon(window.$('answersIco'), window.state.answers ? 'eyeOff' : 'eye');
     }
   };
   window.scrollToQuestion = function () {
