@@ -20,6 +20,7 @@
     <button class="icon-btn" id="answersBtn" aria-pressed="true" title="উত্তর দেখান/লুকান (a)"><span class="ic" id="answersIco" data-ic="eyeOff"></span><span id="answersLbl">উত্তর লুকান</span></button>
     <button class="icon-btn" id="shuffleBtn" title="বর্তমান ফলাফল এলোমেলো করুন"><span class="ic" data-ic="shuffle"></span>এলোমেলো</button>
     <button class="icon-btn" id="csvBtn" title="বর্তমান ফলাফল CSV ফাইলে নামান"><span class="ic" data-ic="download"></span>CSV</button>
+    <button class="icon-btn" id="csvImportBtn" title="নিজের Rayvila CSV আপলোড করে PDF বানান"><span class="ic" data-ic="upload"></span>CSV → PDF</button>
     <button class="icon-btn" id="papersBtn" title="সেভ করা প্রশ্ন সমূহ — আবার PDF তৈরি বা এডিট করুন"><span class="ic" data-ic="bookmark"></span>সেভ প্রশ্ন সমূহ <span class="pill" id="papersCount">০</span></button>
     <button class="icon-btn" id="resetBtn" title="সব ফিল্টার মুছুন"><span class="ic" data-ic="rotateCcw"></span>রিসেট</button>
     <button class="icon-btn icon-only" id="themeBtn" title="থিম বদলান" aria-label="থিম বদলান"><span class="ic" id="themeIco" data-ic="moon"></span></button>
@@ -224,17 +225,74 @@
   </div>
 </div>
 
+<div class="modal-back" id="csvImportModal" hidden>
+  <div class="modal pdf-modal csv-modal" role="dialog" aria-modal="true" aria-labelledby="csvImportHead">
+    <div class="pdf-form-head">
+      <div class="pdf-head-row">
+        <span class="pdf-head-ico"><span class="ic" data-ic="upload"></span></span>
+        <div class="pdf-head-txt">
+          <h3 id="csvImportHead">CSV থেকে PDF <span class="pdf-head-badge">CSV</span></h3>
+          <p class="pdf-head-sub">নিজের Rayvila CSV দিন — ফাইলটি শুধু এই ব্রাউজারেই প্রসেস হবে।</p>
+        </div>
+        <button type="button" class="icon-btn icon-only csv-close" id="csvImportClose" title="বন্ধ করুন" aria-label="বন্ধ করুন"><span class="ic" data-ic="x"></span></button>
+      </div>
+    </div>
+
+    <div class="pdf-form-body">
+      <section class="pdf-sec">
+        <div class="pdf-sec-head">
+          <span class="pdf-sec-ico"><span class="ic" data-ic="fileText"></span></span>
+          <div>
+            <h4>CSV ফাইল</h4>
+            <p>Rayvila ১০-কলাম ফরম্যাট সমর্থিত</p>
+          </div>
+        </div>
+        <div class="csv-drop" id="csvImportDrop" role="button" tabindex="0" aria-controls="csvImportFile" aria-label="CSV ফাইল বাছুন বা এখানে টেনে আনুন">
+          <span class="csv-drop-ico"><span class="ic" data-ic="upload"></span></span>
+          <span class="csv-drop-title">CSV এখানে টেনে আনুন</span>
+          <span class="csv-drop-sub">অথবা <span class="pdf-pick"><span class="ic" data-ic="folderOpen"></span>ফাইল বাছুন</span></span>
+          <span class="csv-drop-file" id="csvImportFileName">কোনো ফাইল বাছা হয়নি</span>
+        </div>
+        <input type="file" id="csvImportFile" accept=".csv,text/csv,text/plain,application/vnd.ms-excel" class="pdf-file-input" aria-label="CSV ফাইল বাছুন">
+        <p class="modal-sub csv-format">কলাম: <code>questions, option1–option5, answer, explanation, type, section</code> <button type="button" class="csv-sample" id="csvImportSample">নমুনা CSV</button></p>
+        <p class="modal-sub csv-import-note" id="csvImportNote" aria-live="polite"></p>
+      </section>
+
+      <section class="pdf-sec csv-result" id="csvImportResult" hidden>
+        <div class="pdf-sec-head">
+          <span class="pdf-sec-ico"><span class="ic" data-ic="listChecks"></span></span>
+          <div>
+            <h4>ফাইল পরীক্ষা</h4>
+            <p id="csvImportSummary"></p>
+          </div>
+        </div>
+        <div class="csv-stats" id="csvImportStats"></div>
+        <div class="csv-preview" id="csvImportPreview"></div>
+        <div class="csv-warn" id="csvImportWarn" hidden></div>
+      </section>
+    </div>
+
+    <div class="pdf-form-foot">
+      <div class="modal-actions">
+        <button type="button" class="icon-btn" id="csvImportCancel"><span class="ic" data-ic="x"></span>বাতিল</button>
+        <button type="button" class="icon-btn primary" id="csvImportGo" disabled><span class="ic" data-ic="sliders"></span>PDF সেটিংস</button>
+      </div>
+      <p class="modal-note" id="csvImportFootNote">CSV-এর প্রশ্ন শুধু এই PDF-এর জন্য ব্যবহৃত হবে — প্রশ্নব্যাংকে যোগ হবে না।</p>
+    </div>
+  </div>
+</div>
+
 <div class="modal-back" id="pdfModal" hidden>
   <div class="modal pdf-modal" role="dialog" aria-modal="true" aria-labelledby="pdfHead">
     <div class="pdf-form-head">
       <div class="pdf-head-row">
         <span class="pdf-head-ico"><span class="ic" data-ic="fileText"></span></span>
         <div class="pdf-head-txt">
-          <h3 id="pdfHead">পরীক্ষাপত্র তৈরি <span class="pdf-head-badge">PDF</span></h3>
+          <h3 id="pdfHead">পরীক্ষাপত্র তৈরি <span class="pdf-head-badge">PDF</span> <span class="pdf-head-badge csv-badge" id="pdfSourceBadge" title="CSV থেকে আমদানি করা প্রশ্ন" hidden>CSV</span></h3>
           <p class="pdf-head-sub"><span id="pdfAvail"></span></p>
         </div>
       </div>
-      <div class="pdf-quickbar">
+      <div class="pdf-quickbar" id="pdfQuickbar">
         <button type="button" class="icon-btn" id="pdfSavePaper"><span class="ic" data-ic="bookmark"></span>প্রশ্ন সেভ করুন</button>
         <button type="button" class="icon-btn" id="pdfPapersBtn"><span class="ic" data-ic="folderOpen"></span>সেভ করা প্রশ্ন <span class="pill" id="pdfPapersCount">০</span></button>
       </div>

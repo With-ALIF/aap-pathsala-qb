@@ -1,7 +1,21 @@
 (function () {
   'use strict';
+  // CSV-imported rows are used exactly like selected bank rows for one PDF
+  // session. They are kept separate so the bank selection is never modified.
+  window.pdfRows = function () {
+    return (window.pdfImportRows && window.pdfImportRows.length) ? window.pdfImportRows : window.selRecs();
+  };
+  window.endPdfImport = function () {
+    window.pdfImportRows = null;
+    window.pdfImportName = '';
+    var qb = window.$('pdfQuickbar');
+    if (qb) qb.hidden = false;
+    var badge = window.$('pdfSourceBadge');
+    if (badge) badge.hidden = true;
+  };
   window.openPdfModal = function () {
-    var rows = window.selRecs();
+    var isImport = !!(window.pdfImportRows && window.pdfImportRows.length);
+    var rows = window.pdfRows();
     if (!rows.length) {
       window.flashNote('আগে অন্তত একটি প্রশ্ন নির্বাচন করুন');
       return;
@@ -18,7 +32,17 @@
     var tEl = window.$('pdfTime');
     if (tEl && !tEl.value) tEl.value = window.loadLastDuration();
     window.updateDurationHint();
-    window.$('pdfAvail').textContent = 'নির্বাচিত ' + window.bnNum(rows.length) + 'টি প্রশ্ন দিয়ে একটি সম্পূর্ণ পরীক্ষাপত্র তৈরি হবে।';
+    if (isImport) {
+      window.$('pdfAvail').textContent = 'CSV থেকে ' + window.bnNum(rows.length) + 'টি প্রশ্ন' +
+        (window.pdfImportName ? ' — ' + window.pdfImportName : '') +
+        '। এগুলো শুধু এই PDF-এর জন্য ব্যবহৃত হবে।';
+    } else {
+      window.$('pdfAvail').textContent = 'নির্বাচিত ' + window.bnNum(rows.length) + 'টি প্রশ্ন দিয়ে একটি সম্পূর্ণ পরীক্ষাপত্র তৈরি হবে।';
+    }
+    var quickbar = window.$('pdfQuickbar');
+    if (quickbar) quickbar.hidden = isImport;
+    var sourceBadge = window.$('pdfSourceBadge');
+    if (sourceBadge) sourceBadge.hidden = !isImport;
     window.$('pdfModal').hidden = false;
     window.$('pdfTitleIn').focus();
   };
@@ -107,7 +131,9 @@
     var ansEl = window.$('pdfAns');
     var setsEl = window.$('pdfSets');
     return {
-      title: v('pdfTitleIn') || 'নির্বাচিত প্রশ্নের পরীক্ষাপত্র',
+      title: v('pdfTitleIn') || (window.pdfImportRows && window.pdfImportRows.length
+        ? 'পরীক্ষাপত্র'
+        : 'নির্বাচিত প্রশ্নের পরীক্ষাপত্র'),
       tutor: v('pdfTutor'),
       subject: v('pdfSubj'),
       minutes: mins,
@@ -179,20 +205,26 @@
     var clear = window.$('pdfWmImgClear');
     if (clear) clear.disabled = !window.pdfWmImage;
   };
-  window.closePdf = function () {
+  // keepImport is used by the preview flow: the modal closes, but the
+  // imported rows stay alive until preview's download/close action.
+  window.closePdf = function (keepImport) {
     window.$('pdfModal').hidden = true;
+    if (!keepImport) window.endPdfImport();
   };
   window.pdfGo = function () {
-    var rows = window.selRecs();
+    var rows = window.pdfRows();
     if (!rows.length) return;
     var meta = window.readPdfMeta(rows);
     if (!meta) return;
     window.savePdfOpts();
-    window.closePdf();
+    window.closePdfPreview();
+    window.closePdf(true);
+    // rows/dat are captured above; the import can now be forgotten
+    window.endPdfImport();
     window.generatePdf(rows, meta);
   };
   window.pdfPreview = function () {
-    var rows = window.selRecs();
+    var rows = window.pdfRows();
     if (!rows.length) {
       window.flashNote('আগে অন্তত একটি প্রশ্ন নির্বাচন করুন');
       return;
@@ -200,7 +232,7 @@
     var meta = window.readPdfMeta(rows);
     if (!meta) return;
     window.savePdfOpts();
-    window.closePdf();
+    window.closePdf(true);
     window.buildPdfNode(rows, meta).then(function (node) {
       var scroll = window.$('pdfPrevScroll');
       if (!scroll) return;
@@ -219,6 +251,8 @@
       window.flashNote('প্রিভিউ দেখানো হচ্ছে — ভালো লাগলে “PDF নামান” চাপুন');
     }).catch(function (err) {
       console.error('[pdf] preview failed', err);
+      window.closePdfPreview();
+      window.endPdfImport();
       window.flashNote('প্রিভিউ তৈরি হয়নি — ' + (err && err.message ? err.message : String(err)));
     }).then(function () {
       document.body.classList.remove('pdf-render');
@@ -232,6 +266,7 @@
     if (pv) pv.hidden = true;
     var scroll = window.$('pdfPrevScroll');
     if (scroll) scroll.innerHTML = '';
+    window.endPdfImport();
   };
   function pdfRasterScale() {
     var cores = navigator.hardwareConcurrency || 4;

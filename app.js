@@ -17,6 +17,7 @@
     'app/square-csv.js',
     'app/paper.js',
     'app/pdf.js',
+    'app/csv-import.js',
     'app/papers.js',
     'app/ui-facets.js',
     'app/ui-status.js',

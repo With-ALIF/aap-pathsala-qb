@@ -86,7 +86,8 @@
           }
         });
         if (closed) return;
-        if (window.$('paperSaveModal') && !window.$('paperSaveModal').hidden) window.closePaperSave();
+        if (window.$('csvImportModal') && !window.$('csvImportModal').hidden) window.closeCsvImport();
+        else if (window.$('paperSaveModal') && !window.$('paperSaveModal').hidden) window.closePaperSave();
         else if (window.$('papersModal') && !window.$('papersModal').hidden) window.closePapers();
         else if (window.$('pdfSaveModal') && !window.$('pdfSaveModal').hidden) window.closePdfSave();
         else if (window.$('pdfPreview') && !window.$('pdfPreview').hidden) window.closePdfPreview();
@@ -164,7 +165,9 @@
     if (window.$('selView')) window.$('selView').addEventListener('click', window.openSelTab);
     if (window.$('tabList')) window.$('tabList').addEventListener('click', function () { window.setTab('list'); });
     if (window.$('tabSel')) window.$('tabSel').addEventListener('click', function () { window.setTab('sel'); });
-    if (window.$('pdfCancel')) window.$('pdfCancel').addEventListener('click', window.closePdf);
+    if (window.$('pdfCancel')) {
+      window.$('pdfCancel').addEventListener('click', function () { window.closePdf(); });
+    }
     if (window.$('pdfModal')) {
       window.$('pdfModal').addEventListener('click', function (e) {
         if (e.target === window.$('pdfModal')) window.closePdf();
@@ -175,7 +178,8 @@
     if (window.$('pdfPrevClose')) window.$('pdfPrevClose').addEventListener('click', window.closePdfPreview);
     if (window.$('pdfPrevGo')) {
       window.$('pdfPrevGo').addEventListener('click', function () {
-        window.closePdfPreview();
+        // pdfGo() closes the preview itself; closing it first would clear a
+        // CSV-imported row set before the PDF gets a chance to read it.
         window.pdfGo();
       });
     }
@@ -255,6 +259,7 @@
         if (e.key === 'Enter') { e.preventDefault(); window.pdfGo(); }
       });
     }
+    if (window.bindCsvImportEvents) window.bindCsvImportEvents();
     if (window.bindPaperEvents) window.bindPaperEvents();
   };
   window.bindEvents = function () {
