@@ -317,25 +317,23 @@
     window.pdfMissingImages = 0;
     if (!node) return Promise.resolve();
     function missing(img) {
+      if (!img || !img.parentNode) return;
       window.pdfMissingImages++;
       var ph = document.createElement('span');
       ph.className = 'pdf-img-missing';
       ph.textContent = 'ছবি লোড হয়নি';
       var w = Number(img.getAttribute('width')) || 0;
       if (w > 0 && w < 320) ph.style.width = w + 'px';
-      if (img.parentNode) img.parentNode.replaceChild(ph, img);
+      img.parentNode.replaceChild(ph, img);
     }
-    return window.imagesReady(node, 1500).then(function () {
+    // A remote image that is still pending must not be allowed to make
+    // html2canvas retry a whole page three times. Give the document one
+    // shared image budget, then replace whatever is left with a placeholder.
+    return window.imagesReady(node, 10000).then(function () {
       var imgs = Array.prototype.slice.call(node.querySelectorAll('img'));
       for (var i = 0; i < imgs.length; i++) {
         var img = imgs[i];
-        // Only replace images that actually errored. A slow remote image is
-        // still allowed to arrive; replacing every pending image made an
-        // image-heavy CSV look like all its pictures were broken.
-        if (img.complete && !img.naturalWidth) missing(img);
-        else if (!img.complete) {
-          img.addEventListener('error', function () { missing(this); }, { once: true });
-        }
+        if (!(img.complete && img.naturalWidth > 0)) missing(img);
       }
     });
   }
@@ -611,6 +609,7 @@
     else window.flashNote('PDF তৈরি করা যায়নি: ' + message);
   };
   window.buildPdfNode = function (rows, meta) {
+    if (window.csvStopPrefetch) window.csvStopPrefetch();
     var needed = window.pendingFor(rows);
     window.setSelBusy(true, 'শার্ড লোড হচ্ছে…');
     window.flashNote('পরীক্ষাপত্রের জন্য শার্ড লোড হচ্ছে…');

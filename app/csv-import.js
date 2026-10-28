@@ -77,11 +77,35 @@
       return escapeHtml(source.replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ').trim();
     }
   }
+  // testmoz serves full-size PNGs (often 300-800 KB). For a paper with 100+
+  // explanation screenshots that makes both download and html2canvas very
+  // slow. A resized copy keeps the PDF readable and is cached by the proxy.
+  function proxyImageHtml(html) {
+    return String(html == null ? '' : html).replace(
+      /(<img\b[^>]*\bsrc=["'])(https?:\/\/testmozusercontent\.com\/[^"']+)(["'])/gi,
+      function (m, pre, url, post) {
+        var proxy = 'https://images.weserv.nl/?url=' + encodeURIComponent(url) +
+          '&w=1000&output=jpg&q=82';
+        return pre + proxy + post + ' data-orig-src="' +
+          url.replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '"';
+      }
+    );
+  }
+  // If the resize proxy is unavailable, transparently retry the original
+  // testmoz URL once instead of showing a broken image.
+  window.addEventListener('error', function (e) {
+    var img = e && e.target;
+    if (!img || img.tagName !== 'IMG' || !img.getAttribute) return;
+    var original = img.getAttribute('data-orig-src');
+    if (!original || img.getAttribute('data-orig-tried')) return;
+    img.setAttribute('data-orig-tried', '1');
+    img.src = original;
+  }, true);
   function htmlOf(v) {
     var s = String(v == null ? '' : v).replace(/\r\n?/g, '\n').trim();
     if (!s) return '';
-    if (!looksLikeHtml(s)) return escapeHtml(s).replace(/\n/g, '<br>');
-    return sanitizeHtml(s);
+    if (!looksLikeHtml(s)) return proxyImageHtml(escapeHtml(s).replace(/\n/g, '<br>'));
+    return proxyImageHtml(sanitizeHtml(s));
   }
   // The shared textOf() helper treats a <textarea> as a raw-text element and
   // can leave tags in the string; imported content needs reliable plain text.
@@ -449,6 +473,7 @@
   // the browser cache while the user is still on the CSV/PDF settings screen,
   // so preview and PDF generation do not have to start every download.
   var prefetchToken = 0;
+  window.csvStopPrefetch = function () { prefetchToken++; };
   function prefetchCsvImages(st) {
     var token = ++prefetchToken;
     var seen = {};
@@ -603,9 +628,9 @@
         var st = buildState(String(reader.result || ''), file.name || 'CSV');
         window.csvImportState = st;
         renderState(st);
-        // For a huge explanation-image set the PDF starts with those images
-        // off, so do not spend bandwidth preloading all of them.
-        if (st.eImages < 30) prefetchCsvImages(st);
+        // Start warming the image cache now; the user can still turn images
+        // off in PDF settings for a faster export.
+        prefetchCsvImages(st);
       } catch (err) {
         window.csvImportState = null;
         var result = $('csvImportResult');
@@ -636,18 +661,15 @@
       var base = String(st.name || '').replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
       title.value = base || '';
     }
-    // A 200-question CSV can carry 100+ explanation screenshots. Waiting for
-    // all of them makes a PDF feel stuck, so start fast by default; the user
-    // can switch images back on in the same settings screen.
+    // Do not remove content silently. Images stay on by default; the user can
+    // uncheck this for a fast text-only export when the image host is slow.
     var imgToggle = $('pdfImages');
-    var fastDefault = st.eImages >= 30;
-    if (imgToggle) {
-      imgToggle.checked = !fastDefault && window.loadPdfOpts().images !== false;
-    }
-    if (fastDefault) {
+    if (imgToggle) imgToggle.checked = true;
+    if (st.eImages >= 30) {
       var note = $('pdfNote');
       if (note) {
-        note.textContent = 'অনেক ব্যাখ্যা-ছবি আছে — দ্রুত PDF-এর জন্য ছবি বন্ধ রাখা হয়েছে।';
+        note.textContent = 'এই CSV-তে ' + bn(st.eImages) + 'টি ব্যাখ্যা-ছবি আছে — PDF তৈরি হতে সময় লাগতে পারে। ' +
+          'দ্রুত চাইলে “ব্যাখ্যার ছবি যুক্ত করুন” বন্ধ করুন।';
         note.className = 'modal-note';
       }
     }
