@@ -1,14 +1,40 @@
 (function () {
   'use strict';
 
-  // Imported questions live in their own synthetic shard so the normal PDF
-  // pipeline (pendingFor -> DATMAP -> buildPaper) can read them unchanged.
-  var SHARD = '__csv';
+  // This page is deliberately separate from the question-bank browser. It
+  // loads only the shared paper/PDF engine; CSV rows never touch the bank,
+  // the saved-question store, or the normal PDF preset.
+  var SHARD = '__csvpdf';
   var MAX_BYTES = 5 * 1024 * 1024;
-  var MAX_ROWS = 1000;
+  var MAX_ROWS = 2000;
+  var OPT_KEY = 'qb_csvpdf_opts';
+  var DUR_KEY = 'qb_csvpdf_duration';
+  var WM_KEY = 'qb_csvpdf_wmimg';
   var readToken = 0;
+  var prefetchToken = 0;
+  var prefetchCache = Object.create(null);
+  var current = null;
 
-  function $(id) { return window.$(id); }
+  // Shared paper/pdf modules expect these globals. This page has no bank
+  // manifest, so provide only the small surface they need.
+  window.DATMAP = window.DATMAP || {};
+  window.BN_DIGITS = window.BN_DIGITS || ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  window.NONE = window.NONE || '__none__';
+  window.pdfImportRows = null;
+  window.pdfImportName = '';
+  window.pdfSeedOverride = 0;
+  window.selRecs = function () { return []; };
+  window.pendingFor = function () { return []; };
+  window.loadDat = function () { return Promise.resolve(); };
+  window.sanitizeName = function (s) {
+    return String(s == null ? '' : s)
+      .replace(/[\\/:*?"<>|]+/g, '-')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 90);
+  };
+
+  function $(id) { return document.getElementById(id); }
   function bn(v) { return window.bnNum(v == null ? 0 : v); }
   function setText(id, text) {
     var el = $(id);
@@ -25,7 +51,80 @@
     return bn(Math.max(1, Math.round(n / 1024))) + ' KB';
   }
 
-  // ---------------- safe HTML ----------------
+  // ---------------- status / busy ----------------
+  var statusTimer = 0;
+  window.flashNote = function (msg) {
+    var el = $('csvPdfStatus');
+    if (!el) return;
+    el.hidden = false;
+    el.textContent = msg || '';
+    el.className = 'csvpdf-status';
+    clearTimeout(statusTimer);
+    statusTimer = setTimeout(function () {
+      if (!document.body.classList.contains('csvpdf-busy')) el.hidden = true;
+    }, 4500);
+  };
+  window.setSelBusy = function (on, label) {
+    var el = $('csvPdfStatus');
+    document.body.classList.toggle('csvpdf-busy', !!on);
+    if (!el) return;
+    if (on) {
+      clearTimeout(statusTimer);
+      el.hidden = false;
+      el.className = 'csvpdf-status csvpdf-status-busy';
+      el.textContent = label || 'কাজ চলছে…';
+    } else {
+      el.hidden = false;
+      el.className = 'csvpdf-status csvpdf-status-ok';
+      el.textContent = 'প্রস্তুত';
+      clearTimeout(statusTimer);
+      statusTimer = setTimeout(function () { el.hidden = true; }, 2500);
+    }
+  };
+
+  // ---------------- preferences (separate from the main PDF preset) ----------------
+  window.loadPdfOpts = function () {
+    try { return JSON.parse(localStorage.getItem(OPT_KEY) || '{}') || {}; } catch (e) { return {}; }
+  };
+  window.savePdfOpts = function () {
+    function v(id) { var el = $(id); return el ? String(el.value || '').trim() : ''; }
+    var qEl = $('pdfQSize'), hEl = $('pdfHSize'), opEl = $('pdfWmOp');
+    var ansEl = $('pdfAns'), setsEl = $('pdfSets'), imgEl = $('pdfImages');
+    try {
+      localStorage.setItem(OPT_KEY, JSON.stringify({
+        title: v('pdfTitleIn'),
+        tutor: v('pdfTutor'),
+        subject: v('pdfSubj'),
+        marks: v('pdfMarks'),
+        sets: !!(setsEl && setsEl.checked),
+        qSize: qEl && Number(qEl.value) > 0 ? Number(qEl.value) : 11,
+        hSize: hEl && Number(hEl.value) > 0 ? Number(hEl.value) : 24,
+        watermark: v('pdfWm'),
+        wmTransparency: opEl && Number(opEl.value) > 0 ? Number(opEl.value) : 90,
+        footerL: v('pdfFootL'),
+        footerR: v('pdfFootR'),
+        answers: !(ansEl && ansEl.value === 'no'),
+        images: !!(imgEl && imgEl.checked)
+      }));
+    } catch (e) {}
+  };
+  window.loadLastDuration = function () {
+    try { return localStorage.getItem(DUR_KEY) || ''; } catch (e) { return ''; }
+  };
+  window.saveLastDuration = function (v) {
+    try { if (v) localStorage.setItem(DUR_KEY, v); } catch (e) {}
+  };
+  window.loadPdfWmImage = function () {
+    try { return localStorage.getItem(WM_KEY) || ''; } catch (e) { return ''; }
+  };
+  window.savePdfWmImage = function (dataUrl) {
+    try {
+      if (dataUrl) localStorage.setItem(WM_KEY, dataUrl);
+      else localStorage.removeItem(WM_KEY);
+    } catch (e) {}
+  };
+
+  // ---------------- safe HTML + resized remote images ----------------
   function escapeHtml(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;')
@@ -36,8 +135,6 @@
   function looksLikeHtml(s) {
     return /<\/?[a-zA-Z][^>]*>/.test(String(s == null ? '' : s));
   }
-  // CSV can contain formatting and images (the app's own export does), but it
-  // must not be able to run scripts or handlers inside the preview/PDF DOM.
   function sanitizeHtml(raw) {
     var source = String(raw == null ? '' : raw);
     try {
@@ -77,9 +174,6 @@
       return escapeHtml(source.replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ').trim();
     }
   }
-  // testmoz serves full-size PNGs (often 300-800 KB). For a paper with 100+
-  // explanation screenshots that makes both download and html2canvas very
-  // slow. A resized copy keeps the PDF readable and is cached by the proxy.
   function proxyImageHtml(html) {
     return String(html == null ? '' : html).replace(
       /(<img\b[^>]*\bsrc=["'])(https?:\/\/testmozusercontent\.com\/[^"']+)(["'])/gi,
@@ -91,8 +185,6 @@
       }
     );
   }
-  // If the resize proxy is unavailable, transparently retry the original
-  // testmoz URL once instead of showing a broken image.
   window.addEventListener('error', function (e) {
     var img = e && e.target;
     if (!img || img.tagName !== 'IMG' || !img.getAttribute) return;
@@ -107,14 +199,10 @@
     if (!looksLikeHtml(s)) return proxyImageHtml(escapeHtml(s).replace(/\n/g, '<br>'));
     return proxyImageHtml(sanitizeHtml(s));
   }
-  // The shared textOf() helper treats a <textarea> as a raw-text element and
-  // can leave tags in the string; imported content needs reliable plain text.
   function plainOfHtml(html) {
     if (!html) return '';
     try {
       var d = document.createElement('div');
-      // textContent does not create a gap for <br>/block breaks, so add one
-      // before flattening formatted HTML back to a one-line label/summary.
       d.innerHTML = String(html)
         .replace(/<br\s*\/?>/gi, ' ')
         .replace(/<\/(?:p|div|li|tr|h[1-6])>/gi, ' ');
@@ -123,9 +211,7 @@
       return String(html).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
     }
   }
-  function plainOf(v) {
-    return plainOfHtml(htmlOf(v));
-  }
+  function plainOf(v) { return plainOfHtml(htmlOf(v)); }
   function meaningful(v) {
     var s = String(v == null ? '' : v).trim();
     if (!s) return false;
@@ -152,7 +238,6 @@
     if (counts['\t'] > counts[best]) best = '\t';
     return best;
   }
-
   function parseRows(text, delim) {
     var rows = [];
     var row = [];
@@ -217,7 +302,6 @@
     ['option4', 'optiond', 'opt4', 'choice4', 'choiced'],
     ['option5', 'optione', 'opt5', 'choice5', 'choicee']
   ];
-
   function findColumn(header, names) {
     var wanted = {};
     for (var i = 0; i < names.length; i++) wanted[names[i]] = true;
@@ -239,8 +323,6 @@
         }
       }
     }
-    // A single "answer"/"type" cell can be ordinary data; require two such
-    // markers when the first row has no recognizable question column.
     return strong >= 2;
   }
   function mapHeader(header) {
@@ -257,7 +339,6 @@
     if (idx == null || idx < 0 || idx >= row.length) return '';
     return row[idx] == null ? '' : String(row[idx]);
   }
-
   function toEnglishDigits(s) {
     return String(s || '').replace(/[০-৯]/g, function (d) {
       return String(d.charCodeAt(0) - 0x09E6);
@@ -266,12 +347,10 @@
   function parseAnswer(raw, opts) {
     var s = String(raw == null ? '' : raw).trim();
     if (!s) return 0;
-    // Multi-answer formats (for example Square CSV) are reduced to the first
-    // answer because the PDF answer key is a single-choice key.
     var first = s.split(/[,;|]/)[0].trim();
     var token = first.replace(/^[\(\[]\s*/, '').replace(/\s*[\)\]]$/, '').trim();
     token = token.replace(/^(?:correct\s+)?(?:option|opt|ans(?:wer)?)\s*[:\-]?\s*/i, '');
-    var m = token.match(/^[\(\[]?\s*([0-9]+|[A-Ea-e]|[১-৫]|[কখগঘঙ])\s*[\)\]]?[\.:]?$/);
+    var m = token.match(/^([0-9]+|[A-Ea-e]|[১-৫]|[কখগঘঙ])\s*[\.:]?$/);
     if (m) {
       var t = m[1];
       if (/^[০-৯]$/.test(t)) return parseInt(toEnglishDigits(t), 10);
@@ -292,7 +371,7 @@
     return opts.length ? 'mcq' : 'written';
   }
 
-  // ---------------- build the rows the paper renderer understands ----------------
+  // ---------------- build imported rows ----------------
   function buildState(text, name) {
     text = String(text == null ? '' : text).replace(/^\uFEFF/, '').replace(/\u0000/g, '');
     var warnings = [];
@@ -405,7 +484,7 @@
     if (!rows.length) throw new Error('কোনো বৈধ প্রশ্ন পাওয়া যায়নি');
     if (images >= 30) {
       warnings.push('এই CSV-তে ' + bn(images) + 'টি ছবি আছে — PDF তৈরি হতে সময় লাগতে পারে। ' +
-        'দ্রুত PDF-এর জন্য সেটিংসে “ব্যাখ্যার ছবি যুক্ত করুন” বন্ধ রাখুন।');
+        'দ্রুত PDF-এর জন্য সেটিংসে “ব্যাখ্যার ছবি যুক্ত করুন” বন্ধ করুন।');
     }
     window.DATMAP[SHARD] = dat;
     return {
@@ -423,60 +502,10 @@
     };
   }
 
-  // ---------------- modal state / rendering ----------------
-  function resetImport() {
-    readToken++;
-    window.csvImportState = null;
-    var result = $('csvImportResult');
-    if (result) result.hidden = true;
-    setText('csvImportFileName', 'কোনো ফাইল বাছা হয়নি');
-    var drop = $('csvImportDrop');
-    if (drop) drop.classList.remove('has-file', 'is-drag');
-    var file = $('csvImportFile');
-    if (file) file.value = '';
-    var go = $('csvImportGo');
-    if (go) go.disabled = true;
-    var note = $('csvImportNote');
-    if (note) {
-      note.textContent = '';
-      note.className = 'modal-sub csv-import-note';
-    }
-    clearNode($('csvImportStats'));
-    clearNode($('csvImportPreview'));
-    var warn = $('csvImportWarn');
-    if (warn) { warn.hidden = true; clearNode(warn); }
-    setText('csvImportSummary', '');
-    $('csvImportModal') && $('csvImportModal').removeAttribute('data-busy');
-  }
-
-  function setNote(msg, isError) {
-    var note = $('csvImportNote');
-    if (!note) return;
-    note.textContent = msg || '';
-    note.className = 'modal-sub csv-import-note' + (isError ? ' modal-err' : '');
-  }
-
-  function showFile(file) {
-    var drop = $('csvImportDrop');
-    if (drop) drop.classList.add('has-file');
-    setText('csvImportFileName', (file.name || 'CSV') + ' · ' + sizeLabel(file.size));
-  }
-
-  function chip(label, value, warn) {
-    var c = window.el('span', 'csv-chip' + (warn ? ' warn' : ''));
-    c.appendChild(window.el('b', null, bn(value)));
-    c.appendChild(document.createTextNode(' ' + label));
-    return c;
-  }
-
-  // The testmoz image host can be slow when a paper has 100+ pictures. Warm
-  // the browser cache while the user is still on the CSV/PDF settings screen,
-  // so preview and PDF generation do not have to start every download.
-  var prefetchToken = 0;
+  // ---------------- image prefetch ----------------
   window.csvStopPrefetch = function () { prefetchToken++; };
-  function prefetchCsvImages(st) {
-    var token = ++prefetchToken;
-    var seen = {};
+  function collectImageUrls(st) {
+    var seen = Object.create(null);
     Object.keys(st.dat || {}).forEach(function (key) {
       var full = st.dat[key] || {};
       var html = String(full.q || '') + String(full.e || '');
@@ -488,17 +517,20 @@
         if (/^https?:\/\//i.test(url)) seen[url] = 1;
       }
     });
-    var urls = Object.keys(seen);
+    return Object.keys(seen);
+  }
+  function prefetchImages(st) {
+    if (!st) return;
+    var token = ++prefetchToken;
+    var urls = collectImageUrls(st);
     if (!urls.length) return;
-    window.__csvImgPrefetch = window.__csvImgPrefetch || {};
-    var cache = window.__csvImgPrefetch;
     var idx = 0;
     var active = 0;
     function next() {
       if (token !== prefetchToken) return;
       while (active < 4 && idx < urls.length) {
         var url = urls[idx++];
-        if (cache[url]) continue;
+        if (prefetchCache[url]) continue;
         active++;
         (function (u) {
           var im = new Image();
@@ -509,7 +541,7 @@
             done = true;
             clearTimeout(timer);
             active--;
-            if (ok) cache[u] = im;
+            if (ok) prefetchCache[u] = im;
             next();
           }
           im.onload = function () { finish(true); };
@@ -521,6 +553,45 @@
     next();
   }
 
+  // ---------------- UI ----------------
+  function setNote(msg, isError) {
+    var note = $('csvImportNote');
+    if (!note) return;
+    note.textContent = msg || '';
+    note.className = 'modal-sub csv-import-note' + (isError ? ' modal-err' : '');
+  }
+  function showFile(file) {
+    var drop = $('csvImportDrop');
+    if (drop) drop.classList.add('has-file');
+    setText('csvImportFileName', (file.name || 'CSV') + ' · ' + sizeLabel(file.size));
+  }
+  function chip(label, value, warn) {
+    var c = window.el('span', 'csv-chip' + (warn ? ' warn' : ''));
+    c.appendChild(window.el('b', null, bn(value)));
+    c.appendChild(document.createTextNode(' ' + label));
+    return c;
+  }
+  function resetUi() {
+    readToken++;
+    current = null;
+    window.csvPdfState = null;
+    if (window.endPdfImport) window.endPdfImport();
+    var result = $('csvImportResult');
+    if (result) result.hidden = true;
+    setText('csvImportFileName', 'কোনো ফাইল বাছা হয়নি');
+    var drop = $('csvImportDrop');
+    if (drop) drop.classList.remove('has-file', 'is-drag');
+    var file = $('csvImportFile');
+    if (file) file.value = '';
+    var go = $('csvImportGo');
+    if (go) go.disabled = true;
+    setNote('', false);
+    clearNode($('csvImportStats'));
+    clearNode($('csvImportPreview'));
+    var warn = $('csvImportWarn');
+    if (warn) { warn.hidden = true; clearNode(warn); }
+    setText('csvImportSummary', '');
+  }
   function renderState(st) {
     var result = $('csvImportResult');
     if (result) result.hidden = false;
@@ -540,13 +611,13 @@
     clearNode(prev);
     if (prev) {
       var letters = ['ক', 'খ', 'গ', 'ঘ', 'ঙ'];
-      var limit = Math.min(4, st.rows.length);
+      var limit = Math.min(5, st.rows.length);
       for (var i = 0; i < limit; i++) {
         var rec = st.rows[i];
         var row = window.el('div', 'csv-prev-row');
         row.appendChild(window.el('span', 'csv-prev-n', bn(i + 1)));
         var txt = rec.t || '(শুধু ছবি)';
-        if (txt.length > 90) txt = txt.slice(0, 89) + '…';
+        if (txt.length > 95) txt = txt.slice(0, 94) + '…';
         row.appendChild(window.el('span', 'csv-prev-t', txt));
         var meta = rec.ty === 'written' ? 'লিখিত' :
           (bn(rec.n) + 'টি অপশন' + (rec.a ? ' · উত্তর ' + (letters[rec.a - 1] || '') : ''));
@@ -568,7 +639,7 @@
         warn.hidden = false;
         warn.appendChild(window.el('b', null, 'সতর্কতা'));
         var ul = window.el('ul');
-        var shown = Math.min(5, st.warnings.length);
+        var shown = Math.min(6, st.warnings.length);
         for (var w = 0; w < shown; w++) ul.appendChild(window.el('li', null, st.warnings[w]));
         if (st.warnings.length > shown) {
           ul.appendChild(window.el('li', null, 'আরও ' + bn(st.warnings.length - shown) + 'টি সতর্কতা আছে'));
@@ -580,26 +651,13 @@
     }
     var go = $('csvImportGo');
     if (go) go.disabled = false;
-    setNote('প্রস্তুত — PDF সেটিংসে গিয়ে হেডার, সেট ও ওয়াটারমার্ক ঠিক করুন।', false);
+    setNote('প্রস্তুত — PDF সেটিংসে গিয়ে সেট, ছবি ও ওয়াটারমার্ক ঠিক করুন।', false);
+    window.flashNote('CSV প্রস্তুত — PDF সেটিংস খুলুন');
   }
 
-  window.openCsvImport = function () {
-    if (window.endPdfImport) window.endPdfImport();
-    resetImport();
-    var modal = $('csvImportModal');
-    if (modal) modal.hidden = false;
-    var drop = $('csvImportDrop');
-    if (drop) { try { drop.focus(); } catch (e) {} }
-  };
-  window.closeCsvImport = function () {
-    readToken++;
-    var modal = $('csvImportModal');
-    if (modal) modal.hidden = true;
-  };
-
-  window.csvImportRead = function (file) {
+  function csvImportRead(file) {
     if (!file) return;
-    resetImport();
+    resetUi();
     var token = ++readToken;
     showFile(file);
     if (file.size > MAX_BYTES) {
@@ -626,18 +684,19 @@
       if (token !== readToken) return;
       try {
         var st = buildState(String(reader.result || ''), file.name || 'CSV');
-        window.csvImportState = st;
+        current = st;
+        window.csvPdfState = st;
         renderState(st);
-        // Start warming the image cache now; the user can still turn images
-        // off in PDF settings for a faster export.
-        prefetchCsvImages(st);
+        prefetchImages(st);
       } catch (err) {
-        window.csvImportState = null;
+        current = null;
+        window.csvPdfState = null;
         var result = $('csvImportResult');
         if (result) result.hidden = true;
         var go = $('csvImportGo');
         if (go) go.disabled = true;
         setNote('CSV পড়া যায়নি — ' + (err && err.message ? err.message : String(err)), true);
+        window.flashNote('CSV পড়া যায়নি');
       }
     };
     reader.onerror = function () {
@@ -645,37 +704,33 @@
       setNote('ফাইলটি পড়া যায়নি — আবার চেষ্টা করুন।', true);
     };
     reader.readAsText(file, 'UTF-8');
-  };
+  }
+  window.csvImportRead = csvImportRead;
 
-  window.csvImportStartPdf = function () {
-    var st = window.csvImportState;
+  function csvImportStartPdf() {
+    var st = current;
     if (!st || !st.rows.length) return;
     window.pdfImportRows = st.rows;
     window.pdfImportName = st.name || '';
-    window.closeCsvImport();
     window.openPdfModal();
-    // A filename is a better starting title than the generic fallback. Always
-    // use this CSV's name — a previous imported/normal title must not linger.
     var title = $('pdfTitleIn');
     if (title) {
       var base = String(st.name || '').replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
       title.value = base || '';
     }
-    // Do not remove content silently. Images stay on by default; the user can
-    // uncheck this for a fast text-only export when the image host is slow.
     var imgToggle = $('pdfImages');
     if (imgToggle) imgToggle.checked = true;
     if (st.eImages >= 30) {
       var note = $('pdfNote');
       if (note) {
-        note.textContent = 'এই CSV-তে ' + bn(st.eImages) + 'টি ব্যাখ্যা-ছবি আছে — PDF তৈরি হতে সময় লাগতে পারে। ' +
-          'দ্রুত চাইলে “ব্যাখ্যার ছবি যুক্ত করুন” বন্ধ করুন।';
+        note.textContent = 'এই CSV-তে ' + bn(st.eImages) + 'টি ব্যাখ্যা-ছবি আছে — ছবিগুলো PDF-এর জন্য auto resize/cache করা হবে।';
         note.className = 'modal-note';
       }
     }
-  };
+  }
+  window.csvImportStartPdf = csvImportStartPdf;
 
-  window.csvImportSample = function () {
+  function csvImportSample() {
     try {
       var data = [
         ['বাংলাদেশের রাজধানী কোনটি?', 'ঢাকা', 'চট্টগ্রাম', 'খুলনা', 'রাজশাহী', '', '1', 'ঢাকা বাংলাদেশের রাজধানী।', '1', '1'],
@@ -686,40 +741,21 @@
       for (var i = 0; i < data.length; i++) {
         lines.push(data[i].map(function (v) { return window.csvCell(v); }).join(','));
       }
-      var ok = window.downloadCSV('\uFEFF' + lines.join('\r\n') + '\r\n', 'rayvila-sample.csv');
-      if (ok === false) setNote('নমুনা CSV নামানো যায়নি — ব্রাউজারের ডাউনলোড অনুমতি দিন।', true);
-      else setNote('নমুনা CSV নামানো হয়েছে — ফাইলটি খুলে ফরম্যাট দেখুন।', false);
+      window.downloadBlob(new Blob(['\uFEFF' + lines.join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8;' }), 'rayvila-sample.csv');
+      setNote('নমুনা CSV নামানো হয়েছে — ফাইলটি খুলে ফরম্যাট দেখুন।', false);
     } catch (e) {
       setNote('নমুনা CSV তৈরি করা যায়নি।', true);
     }
-  };
+  }
 
-  window.bindCsvImportEvents = function () {
-    var btn = $('csvImportBtn');
-    if (btn) btn.addEventListener('click', window.openCsvImport);
-    var close = $('csvImportClose');
-    if (close) close.addEventListener('click', window.closeCsvImport);
-    var cancel = $('csvImportCancel');
-    if (cancel) cancel.addEventListener('click', window.closeCsvImport);
-    var modal = $('csvImportModal');
-    if (modal) {
-      modal.addEventListener('click', function (e) {
-        if (e.target === modal) window.closeCsvImport();
-      });
-      // dropping a file outside the drop zone must not navigate away from the app
-      modal.addEventListener('dragover', function (e) {
-        if (e.dataTransfer) e.preventDefault();
-      });
-      modal.addEventListener('drop', function (e) {
-        if (e.dataTransfer) e.preventDefault();
-      });
-    }
+  // ---------------- PDF control bindings ----------------
+  function bindUpload() {
     var input = $('csvImportFile');
     var drop = $('csvImportDrop');
     if (input) {
       input.addEventListener('change', function () {
         var f = input.files && input.files[0];
-        if (f) window.csvImportRead(f);
+        if (f) csvImportRead(f);
         input.value = '';
       });
     }
@@ -750,25 +786,150 @@
         e.preventDefault();
         drop.classList.remove('is-drag');
         var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-        if (f) window.csvImportRead(f);
+        if (f) csvImportRead(f);
       });
     }
+    window.addEventListener('dragover', function (e) { if (e.dataTransfer) e.preventDefault(); });
+    window.addEventListener('drop', function (e) { if (e.dataTransfer) e.preventDefault(); });
+
     var sample = $('csvImportSample');
-    if (sample) sample.addEventListener('click', window.csvImportSample);
+    if (sample) sample.addEventListener('click', csvImportSample);
     var go = $('csvImportGo');
-    if (go) go.addEventListener('click', window.csvImportStartPdf);
+    if (go) go.addEventListener('click', csvImportStartPdf);
+  }
+
+  function bindPdf() {
+    if ($('pdfCancel')) $('pdfCancel').addEventListener('click', function () { window.closePdf(); });
+    if ($('pdfModal')) {
+      $('pdfModal').addEventListener('click', function (e) {
+        if (e.target === $('pdfModal')) window.closePdf();
+      });
+    }
+    if ($('pdfGo')) $('pdfGo').addEventListener('click', window.pdfGo);
+    if ($('pdfPreviewBtn')) $('pdfPreviewBtn').addEventListener('click', window.pdfPreview);
+    if ($('pdfPrevClose')) $('pdfPrevClose').addEventListener('click', window.closePdfPreview);
+    if ($('pdfPrevGo')) {
+      $('pdfPrevGo').addEventListener('click', function () {
+        window.pdfGo();
+      });
+    }
+    if ($('pdfPreview')) {
+      $('pdfPreview').addEventListener('click', function (e) {
+        if (e.target === $('pdfPreview')) window.closePdfPreview();
+      });
+    }
+    ['pdfQSize', 'pdfHSize', 'pdfWmOp'].forEach(function (id) {
+      var el = $(id);
+      if (el) el.addEventListener('input', window.updateSizeLabels);
+    });
+
+    var wmFile = $('pdfWmImg');
+    if (wmFile) {
+      wmFile.addEventListener('change', function () {
+        var f = wmFile.files && wmFile.files[0];
+        if (!f) return;
+        if (!/^image\//.test(f.type || '')) {
+          window.flashNote('শুধু ছবি (PNG/JPG) ফাইল দিন');
+          wmFile.value = '';
+          return;
+        }
+        function applyWm(dataUrl) {
+          window.pdfWmImage = dataUrl;
+          window.savePdfWmImage(window.pdfWmImage);
+          window.updateWmImgHint();
+        }
+        var fr = new FileReader();
+        fr.onload = function () {
+          var raw = String(fr.result || '');
+          window.pdfWmImageName = f.name || '';
+          var img = new Image();
+          img.onload = function () {
+            var MAX = 1200;
+            var w = img.naturalWidth || img.width;
+            var h = img.naturalHeight || img.height;
+            if (!w || !h || w <= MAX) return applyWm(raw);
+            var c = document.createElement('canvas');
+            c.width = MAX;
+            c.height = Math.max(1, Math.round(h * (MAX / w)));
+            var ctx = c.getContext('2d');
+            if (!ctx) return applyWm(raw);
+            ctx.drawImage(img, 0, 0, c.width, c.height);
+            try { applyWm(c.toDataURL('image/png')); } catch (e) { applyWm(raw); }
+          };
+          img.onerror = function () { applyWm(raw); };
+          img.src = raw;
+        };
+        fr.readAsDataURL(f);
+      });
+    }
+    if ($('pdfWmImgClear')) {
+      $('pdfWmImgClear').addEventListener('click', function () {
+        window.pdfWmImage = '';
+        window.pdfWmImageName = '';
+        window.savePdfWmImage('');
+        if (wmFile) wmFile.value = '';
+        window.updateWmImgHint();
+      });
+    }
+    if ($('pdfSaveClose')) $('pdfSaveClose').addEventListener('click', window.closePdfSave);
+    if ($('pdfSaveModal')) {
+      $('pdfSaveModal').addEventListener('click', function (e) {
+        if (e.target === $('pdfSaveModal')) window.closePdfSave();
+      });
+    }
+    if ($('pdfSaveLink')) {
+      $('pdfSaveLink').addEventListener('click', function () {
+        if ($('pdfSaveNote')) $('pdfSaveNote').textContent = 'ডাউনলোড শুরু হয়েছে — Downloads ফোল্ডারে দেখুন।';
+      });
+    }
+    if ($('pdfTime')) {
+      $('pdfTime').addEventListener('input', window.updateDurationHint);
+      $('pdfTime').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); window.pdfGo(); }
+      });
+    }
     var imgToggle = $('pdfImages');
     if (imgToggle) {
       imgToggle.addEventListener('change', function () {
-        var note = $('pdfNote');
-        if (imgToggle.checked) {
-          if (note && /অনেক ব্যাখ্যা-ছবি/.test(note.textContent)) {
-            note.textContent = '';
-            note.className = 'modal-note';
-          }
-          if (window.csvImportState) prefetchCsvImages(window.csvImportState);
-        }
+        if (imgToggle.checked && current) prefetchImages(current);
       });
     }
-  };
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      if ($('pdfSaveModal') && !$('pdfSaveModal').hidden) { window.closePdfSave(); return; }
+      if ($('pdfPreview') && !$('pdfPreview').hidden) { window.closePdfPreview(); return; }
+      if ($('pdfModal') && !$('pdfModal').hidden) window.closePdf();
+    });
+  }
+
+  function bindTheme() {
+    var btn = $('themeBtn');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        var next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+        document.documentElement.dataset.theme = next;
+        try { localStorage.setItem('qb-theme', next); } catch (e) {}
+        if (window.updateThemeIcon) window.updateThemeIcon();
+      });
+    }
+  }
+
+  function init() {
+    try {
+      var saved = localStorage.getItem('qb-theme');
+      document.documentElement.dataset.theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    } catch (e) {}
+    if (window.hydrateIcons) window.hydrateIcons(document);
+    if (window.updateThemeIcon) window.updateThemeIcon();
+    bindUpload();
+    bindPdf();
+    bindTheme();
+    setNote('Rayvila CSV বেছে নিন — ফাইলটি শুধু এই ব্রাউজারেই প্রসেস হবে।', false);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 })();

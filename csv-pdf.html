@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="bn" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CSV → PDF — AAP Pathshala</title>
+<meta name="description" content="Rayvila CSV থেকে আলাদা পেজে পরীক্ষাপত্র PDF তৈরি করুন।">
+<link rel="icon" type="image/svg+xml" href="icon/alif-qb.svg">
+<link rel="stylesheet" href="vendor/katex/katex.min.css">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="csv-pdf.css">
+</head>
+<body class="csvpdf-page">
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <h1>CSV → PDF</h1>
+      <span class="sub">Rayvila CSV থেকে পরীক্ষাপত্র</span>
+    </div>
+    <a class="icon-btn" href="index.html" title="প্রশ্নব্যাংকে ফিরুন"><span class="ic" data-ic="bookmark"></span>প্রশ্নব্যাংক</a>
+    <button class="icon-btn icon-only" id="themeBtn" type="button" title="থিম পরিবর্তন" aria-label="থিম পরিবর্তন"><span class="ic" id="themeIco" data-ic="moon"></span></button>
+  </div>
+</header>
+
+<main class="csvpdf-main">
+  <section class="csvpdf-hero">
+    <span class="csvpdf-kicker">আলাদা CSV পেজ</span>
+    <h1>আপনার CSV থেকে পরীক্ষাপত্র</h1>
+    <p>প্রশ্নব্যাংকের কিছুই বদলাবে না। CSV-এর প্রশ্ন, ছবি, ৪ সেট, উত্তর তালিকা, সমাধান আর ওয়াটারমার্ক—সব এই পেজ থেকেই তৈরি হবে।</p>
+    <div class="csvpdf-hero-points">
+      <span>প্রশ্নব্যাংকে যোগ হয় না</span>
+      <span>সেভ করা প্রশ্নে যায় না</span>
+      <span>শুধু এই PDF-এর জন্য</span>
+    </div>
+  </section>
+
+  <div class="csvpdf-grid">
+    <section class="csvpdf-card" aria-labelledby="csvUploadHead">
+      <div class="csvpdf-card-head">
+        <span class="csvpdf-step">১</span>
+        <div>
+          <h2 id="csvUploadHead">CSV ফাইল দিন</h2>
+          <p>Rayvila ১০-কলাম ফরম্যাট — সর্বোচ্চ ৫ MB, ২০০০ প্রশ্ন</p>
+        </div>
+      </div>
+
+      <div class="csv-drop" id="csvImportDrop" role="button" tabindex="0" aria-controls="csvImportFile" aria-label="CSV ফাইল বাছুন বা এখানে টেনে আনুন">
+        <span class="csv-drop-ico"><span class="ic" data-ic="upload"></span></span>
+        <span class="csv-drop-title">CSV এখানে টেনে আনুন</span>
+        <span class="csv-drop-sub">অথবা <span class="pdf-pick"><span class="ic" data-ic="folderOpen"></span>ফাইল বাছুন</span></span>
+        <span class="csv-drop-file" id="csvImportFileName">কোনো ফাইল বাছা হয়নি</span>
+      </div>
+      <input type="file" id="csvImportFile" accept=".csv,text/csv,text/plain,application/vnd.ms-excel" class="pdf-file-input" aria-label="CSV ফাইল বাছুন">
+
+      <p class="modal-sub csv-format">কলাম: <code>questions, option1–option5, answer, explanation, type, section</code></p>
+      <div class="csvpdf-note-row">
+        <p class="modal-sub csv-import-note" id="csvImportNote" aria-live="polite"></p>
+        <button type="button" class="csv-sample" id="csvImportSample">নমুনা CSV</button>
+      </div>
+    </section>
+
+    <aside class="csvpdf-card csvpdf-side" aria-labelledby="csvNextHead">
+      <div class="csvpdf-card-head">
+        <span class="csvpdf-step">২</span>
+        <div>
+          <h2 id="csvNextHead">PDF সেটিংস</h2>
+          <p>সেট, ছবি, ওয়াটারমার্ক, ফুটার</p>
+        </div>
+      </div>
+      <div class="csvpdf-side-box">
+        <p>CSV পড়া হলে এখান থেকে PDF সেটিংস খুলুন। ব্যাখ্যার ছবি ডিফল্টে চালু থাকবে; দ্রুত PDF চাইলে বন্ধ করতে পারবেন।</p>
+      </div>
+      <button type="button" class="icon-btn primary csvpdf-main-btn" id="csvImportGo" disabled><span class="ic" data-ic="sliders"></span>PDF সেটিংস</button>
+      <p class="modal-note" id="csvImportFootNote">CSV-এর প্রশ্ন শুধু এই PDF-এর জন্য ব্যবহৃত হবে — প্রশ্নব্যাংকে যোগ হবে না।</p>
+    </aside>
+  </div>
+
+  <section class="csvpdf-card csvpdf-result-card" id="csvImportResult" hidden>
+    <div class="csvpdf-card-head">
+      <span class="csvpdf-step">৩</span>
+      <div>
+        <h2>ফাইল পরীক্ষা</h2>
+        <p id="csvImportSummary"></p>
+      </div>
+    </div>
+    <div class="csv-stats" id="csvImportStats"></div>
+    <div class="csv-preview" id="csvImportPreview"></div>
+    <div class="csv-warn" id="csvImportWarn" hidden></div>
+  </section>
+
+  <section class="csvpdf-how">
+    <h2>কীভাবে কাজ করে</h2>
+    <ol>
+      <li>Rayvila CSV বেছে নিন। ফাইলটি আপনার ব্রাউজারেই পড়া হয়।</li>
+      <li>সেটিংসে ৪ সেট, উত্তরসহ/ছাড়া, ছবি, ওয়াটারমার্ক ও ফুটার ঠিক করুন।</li>
+      <li>প্রিভিউ দেখে PDF নামান। আবার একই CSV থেকে নতুন সেটিংসে PDF বানাতে পারবেন।</li>
+    </ol>
+  </section>
+</main>
+
+<div class="csvpdf-status" id="csvPdfStatus" hidden aria-live="polite"></div>
+
+<!-- PDF settings -->
+<div class="modal-back" id="pdfModal" hidden>
+  <div class="modal pdf-modal" role="dialog" aria-modal="true" aria-labelledby="pdfHead">
+    <div class="pdf-form-head">
+      <div class="pdf-head-row">
+        <span class="pdf-head-ico"><span class="ic" data-ic="fileText"></span></span>
+        <div class="pdf-head-txt">
+          <h3 id="pdfHead">PDF সেটিংস <span class="pdf-head-badge">PDF</span> <span class="pdf-head-badge csv-badge" id="pdfSourceBadge">CSV</span></h3>
+          <p class="pdf-head-sub"><span id="pdfAvail"></span></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="pdf-form-body">
+      <section class="pdf-sec">
+        <div class="pdf-sec-head">
+          <span class="pdf-sec-ico"><span class="ic" data-ic="type"></span></span>
+          <div>
+            <h4>পরীক্ষার তথ্য</h4>
+            <p>পাতার হেডারে যেসব লেখা বসবে</p>
+          </div>
+        </div>
+        <div class="pdf-field">
+          <label class="modal-label" for="pdfTitleIn">পরীক্ষার নাম</label>
+          <input type="text" id="pdfTitleIn" placeholder="পরীক্ষাপত্র" autocomplete="off">
+        </div>
+        <div class="pdf-two-col">
+          <div class="pdf-field">
+            <label class="modal-label" for="pdfTutor">শিক্ষকের নাম <span class="modal-opt">ঐচ্ছিক</span></label>
+            <input type="text" id="pdfTutor" placeholder="" autocomplete="off">
+          </div>
+          <div class="pdf-field">
+            <label class="modal-label" for="pdfSubj">টাইটেল <span class="modal-opt">ঐচ্ছিক</span></label>
+            <input type="text" id="pdfSubj" placeholder="যেমন: রসায়ন সাজেশন" autocomplete="off">
+          </div>
+        </div>
+        <div class="pdf-two-col">
+          <div class="pdf-field">
+            <label class="modal-label" for="pdfMarks">পূর্ণমান</label>
+            <input type="text" id="pdfMarks" placeholder="৮০" autocomplete="off">
+          </div>
+          <div class="pdf-field">
+            <label class="modal-label" for="pdfTime">সময়</label>
+            <input type="text" id="pdfTime" placeholder="৬০ মিনিট" autocomplete="off" spellcheck="false">
+          </div>
+        </div>
+        <p class="modal-sub" id="pdfTimeHint"></p>
+      </section>
+
+      <section class="pdf-sec">
+        <div class="pdf-sec-head">
+          <span class="pdf-sec-ico"><span class="ic" data-ic="listChecks"></span></span>
+          <div>
+            <h4>প্রশ্ন ও উত্তর</h4>
+            <p>সেট, ক্রম ও উত্তরের ধরন</p>
+          </div>
+        </div>
+        <label class="pdf-toggle">
+          <span class="pdf-toggle-main">
+            <span class="pdf-toggle-title">৪টি সেট (A, B, C, D)</span>
+            <span class="pdf-toggle-sub">প্রতি সেটে আলাদা ক্রম · উত্তর তালিকা · সমাধান শুধু সেট A</span>
+          </span>
+          <input type="checkbox" id="pdfSets">
+          <span class="pdf-toggle-ui" aria-hidden="true"></span>
+        </label>
+        <div class="pdf-field pdf-field-gap">
+          <label class="modal-label" for="pdfAns">PDF টাইপ</label>
+          <select id="pdfAns">
+            <option value="yes">উত্তরসহ — উত্তর তালিকা ও সমাধানসহ</option>
+            <option value="no">উত্তর ছাড়া — শুধু প্রশ্ন</option>
+          </select>
+        </div>
+        <label class="pdf-toggle">
+          <span class="pdf-toggle-main">
+            <span class="pdf-toggle-title">ব্যাখ্যার ছবি যুক্ত করুন</span>
+            <span class="pdf-toggle-sub">বন্ধ রাখলে PDF দ্রুত হবে — প্রশ্নের ছবি সবসময় থাকবে</span>
+          </span>
+          <input type="checkbox" id="pdfImages" checked>
+          <span class="pdf-toggle-ui" aria-hidden="true"></span>
+        </label>
+      </section>
+
+      <section class="pdf-sec">
+        <div class="pdf-sec-head">
+          <span class="pdf-sec-ico"><span class="ic" data-ic="sliders"></span></span>
+          <div>
+            <h4>লেআউট ও সাইজ</h4>
+            <p>PDF-এ লেখার আকার নিয়ন্ত্রণ করুন</p>
+          </div>
+        </div>
+        <div class="pdf-two-col">
+          <div class="pdf-slider">
+            <label class="modal-label" for="pdfQSize">প্রশ্ন সাইজ <output id="pdfQSizeOut">১১px</output></label>
+            <input type="range" id="pdfQSize" min="8" max="24" step="1" value="11">
+            <span class="pdf-scale"><span>ছোট</span><span>বড়</span></span>
+          </div>
+          <div class="pdf-slider">
+            <label class="modal-label" for="pdfHSize">হেডার সাইজ <output id="pdfHSizeOut">২৪px</output></label>
+            <input type="range" id="pdfHSize" min="14" max="40" step="1" value="24">
+            <span class="pdf-scale"><span>ছোট</span><span>বড়</span></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="pdf-sec">
+        <div class="pdf-sec-head">
+          <span class="pdf-sec-ico"><span class="ic" data-ic="droplet"></span></span>
+          <div>
+            <h4>ওয়াটারমার্ক</h4>
+            <p>সব পাতায় হালকা করে বসবে</p>
+          </div>
+        </div>
+        <div class="pdf-field">
+          <label class="modal-label" for="pdfWm">টেক্সট <span class="modal-opt">ঐচ্ছিক</span></label>
+          <input type="text" id="pdfWm" placeholder="AAP Pathshala" autocomplete="off">
+        </div>
+        <div class="pdf-field pdf-field-gap">
+          <label class="modal-label" for="pdfWmOp">ট্রান্সপারেন্সি <output id="pdfWmOpOut">৯০%</output></label>
+          <input type="range" id="pdfWmOp" min="50" max="98" step="1" value="90">
+          <span class="pdf-scale"><span>গাঢ়</span><span>হালকা</span></span>
+        </div>
+        <div class="pdf-field pdf-field-gap">
+          <span class="modal-label">ছবি <span class="modal-opt">ঐচ্ছিক</span></span>
+          <div class="pdf-file-row pdf-upload">
+            <span class="pdf-upload-ico"><span class="ic" data-ic="image"></span></span>
+            <div class="pdf-upload-main">
+              <div class="pdf-upload-line">
+                <input type="file" id="pdfWmImg" accept="image/*" class="pdf-file-input" aria-label="ওয়াটারমার্ক ছবি বাছুন">
+                <label class="pdf-pick" for="pdfWmImg"><span class="ic" data-ic="upload"></span>ছবি বাছুন</label>
+                <span class="pdf-pick-name" id="pdfWmImgName">কোনো ছবি নেই</span>
+              </div>
+              <p class="modal-sub" id="pdfWmImgHint"></p>
+            </div>
+            <button type="button" class="icon-btn" id="pdfWmImgClear">মুছুন</button>
+          </div>
+          <div class="pdf-wm-prev" id="pdfWmImgPrevWrap" hidden>
+            <img id="pdfWmImgPrev" alt="ওয়াটারমার্ক ছবির পূর্বরূপ">
+            <span>এই ছবিটি ওয়াটারমার্ক হিসেবে ব্যবহৃত হবে</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="pdf-sec">
+        <div class="pdf-sec-head">
+          <span class="pdf-sec-ico"><span class="ic" data-ic="type"></span></span>
+          <div>
+            <h4>ফুটার</h4>
+            <p>প্রতিটি পাতার নিচে বাম ও ডান দিকে</p>
+          </div>
+        </div>
+        <div class="pdf-two-col">
+          <div class="pdf-field">
+            <label class="modal-label" for="pdfFootL">বাম দিকের লেখা</label>
+            <input type="text" id="pdfFootL" placeholder="বাম" autocomplete="off">
+          </div>
+          <div class="pdf-field">
+            <label class="modal-label" for="pdfFootR">ডান দিকের লেখা</label>
+            <input type="text" id="pdfFootR" placeholder="ডান" autocomplete="off">
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="pdf-form-foot">
+      <div class="modal-actions">
+        <button class="icon-btn" id="pdfPreviewBtn" type="button"><span class="ic" data-ic="eye"></span>প্রিভিউ</button>
+        <button class="icon-btn" id="pdfCancel" type="button"><span class="ic" data-ic="x"></span>বাতিল</button>
+        <button class="icon-btn primary" id="pdfGo" type="button"><span class="ic" data-ic="download"></span>PDF নামান</button>
+      </div>
+      <p class="modal-note" id="pdfNote"></p>
+    </div>
+  </div>
+</div>
+
+<!-- Full-page preview -->
+<div class="modal-back pdf-prev-back" id="pdfPreview" hidden>
+  <div class="pdf-prev" role="dialog" aria-modal="true" aria-labelledby="pdfPrevHead">
+    <div class="pdf-prev-bar">
+      <span id="pdfPrevHead">প্রিভিউ</span>
+      <div class="pdf-prev-actions">
+        <button class="icon-btn primary" id="pdfPrevGo" type="button">PDF নামান</button>
+        <button class="icon-btn" id="pdfPrevClose" type="button">বন্ধ</button>
+      </div>
+    </div>
+    <div class="pdf-prev-scroll" id="pdfPrevScroll"></div>
+  </div>
+</div>
+
+<!-- Save result -->
+<div class="modal-back" id="pdfSaveModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pdfSaveHead">
+    <h3 id="pdfSaveHead">PDF তৈরি হয়েছে</h3>
+    <p class="modal-hint" id="pdfSaveHint">ফাইলটি নিজে থেকে না নামলে নিচের বোতামে চাপ দিন।</p>
+    <p class="modal-sub pdf-save-name" id="pdfSaveName"></p>
+    <div class="modal-actions">
+      <a class="icon-btn primary" id="pdfSaveLink" download>PDF নামান</a>
+      <a class="icon-btn" id="pdfSaveOpen" target="_blank" rel="noopener">খুলে দেখুন</a>
+      <button class="icon-btn" id="pdfSaveClose" type="button">বন্ধ</button>
+    </div>
+    <p class="modal-note" id="pdfSaveNote"></p>
+  </div>
+</div>
+
+<div id="paper" aria-hidden="true"></div>
+
+<script src="vendor/html2pdf.bundle.min.js"></script>
+<script src="vendor/katex/katex.min.js"></script>
+<script src="app/utils.js"></script>
+<script src="app/csv.js"></script>
+<script src="app/render.js"></script>
+<script src="app/math.js"></script>
+<script src="app/paper.js"></script>
+<script src="app/pdf.js"></script>
+<script src="app/csv-pdf.js"></script>
+</body>
+</html>

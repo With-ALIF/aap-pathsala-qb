@@ -1,0 +1,229 @@
+/* Standalone CSV → PDF page */
+.csvpdf-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(1100px 500px at 50% -220px, color-mix(in srgb, var(--accent) 10%, transparent) 0%, transparent 70%),
+    var(--bg);
+}
+
+.csvpdf-main {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 2rem 1rem 4.5rem;
+}
+
+.csvpdf-hero {
+  margin: .4rem 0 1.4rem;
+}
+
+.csvpdf-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .18rem .55rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.csvpdf-hero h1 {
+  margin: .55rem 0 .4rem;
+  font-size: clamp(1.55rem, 3.2vw, 2.25rem);
+  line-height: 1.22;
+  letter-spacing: -.02em;
+}
+
+.csvpdf-hero p {
+  max-width: 760px;
+  margin: 0;
+  color: var(--muted);
+  font-size: .92rem;
+  line-height: 1.65;
+}
+
+.csvpdf-hero-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  margin-top: .8rem;
+}
+
+.csvpdf-hero-points span {
+  padding: .25rem .55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: .69rem;
+  font-weight: 600;
+}
+
+.csvpdf-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.csvpdf-card {
+  min-width: 0;
+  padding: 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.csvpdf-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: .7rem;
+  margin-bottom: .9rem;
+}
+
+.csvpdf-step {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: .8rem;
+  font-weight: 700;
+}
+
+.csvpdf-card-head h2 {
+  margin: .05rem 0 .1rem;
+  font-size: 1.02rem;
+  line-height: 1.3;
+}
+
+.csvpdf-card-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: .74rem;
+  line-height: 1.45;
+}
+
+.csvpdf-side {
+  position: sticky;
+  top: 84px;
+}
+
+.csvpdf-side-box {
+  margin: .2rem 0 .85rem;
+  padding: .75rem .8rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+}
+
+.csvpdf-side-box p {
+  margin: 0;
+  color: var(--muted);
+  font-size: .76rem;
+  line-height: 1.6;
+}
+
+.csvpdf-main-btn {
+  width: 100%;
+  padding: .7rem .8rem;
+  font-size: .92rem;
+}
+
+.csvpdf-side .modal-note {
+  margin: .65rem 0 0;
+  font-size: .68rem;
+  text-align: center;
+}
+
+.csvpdf-note-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  flex-wrap: wrap;
+  margin-top: .35rem;
+}
+
+.csvpdf-note-row .csv-import-note {
+  flex: 1 1 220px;
+  margin: 0;
+}
+
+.csvpdf-result-card {
+  margin-top: 1rem;
+}
+
+.csvpdf-result-card .csv-stats,
+.csvpdf-result-card .csv-preview,
+.csvpdf-result-card .csv-warn {
+  margin-top: .7rem;
+}
+
+.csvpdf-how {
+  margin-top: 1.3rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 82%, var(--surface-2));
+}
+
+.csvpdf-how h2 {
+  margin: 0 0 .35rem;
+  font-size: .88rem;
+}
+
+.csvpdf-how ol {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--muted);
+  font-size: .76rem;
+  line-height: 1.65;
+}
+
+.csvpdf-status {
+  position: fixed;
+  left: 50%;
+  bottom: 1rem;
+  z-index: 120;
+  max-width: min(92vw, 720px);
+  padding: .58rem .9rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .14);
+  color: var(--text);
+  font-size: .78rem;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
+.csvpdf-status[hidden] { display: none; }
+.csvpdf-status-busy {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.csvpdf-status-ok {
+  border-color: color-mix(in srgb, var(--correct) 40%, var(--border));
+  color: var(--correct);
+}
+.csvpdf-busy { cursor: progress; }
+.csvpdf-busy .icon-btn.primary { opacity: .72; pointer-events: none; }
+
+.csvpdf-page .pdf-modal { max-width: 680px; }
+.csvpdf-page .modal-back { z-index: 100; }
+
+@media (max-width: 820px) {
+  .csvpdf-main { padding-top: 1.3rem; }
+  .csvpdf-grid { grid-template-columns: 1fr; }
+  .csvpdf-side { position: static; }
+  .csvpdf-hero h1 { font-size: 1.5rem; }
+}

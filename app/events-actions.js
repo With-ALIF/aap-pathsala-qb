@@ -86,8 +86,7 @@
           }
         });
         if (closed) return;
-        if (window.$('csvImportModal') && !window.$('csvImportModal').hidden) window.closeCsvImport();
-        else if (window.$('paperSaveModal') && !window.$('paperSaveModal').hidden) window.closePaperSave();
+        if (window.$('paperSaveModal') && !window.$('paperSaveModal').hidden) window.closePaperSave();
         else if (window.$('papersModal') && !window.$('papersModal').hidden) window.closePapers();
         else if (window.$('pdfSaveModal') && !window.$('pdfSaveModal').hidden) window.closePdfSave();
         else if (window.$('pdfPreview') && !window.$('pdfPreview').hidden) window.closePdfPreview();
@@ -259,7 +258,6 @@
         if (e.key === 'Enter') { e.preventDefault(); window.pdfGo(); }
       });
     }
-    if (window.bindCsvImportEvents) window.bindCsvImportEvents();
     if (window.bindPaperEvents) window.bindPaperEvents();
   };
   window.bindEvents = function () {

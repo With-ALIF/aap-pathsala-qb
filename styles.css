@@ -105,6 +105,7 @@ body {
   justify-content: center;
   gap: .38rem;
 }
+a.icon-btn { text-decoration: none; }
 .icon-btn .ic { display: inline-flex; width: 16px; height: 16px; flex: none; }
 .icon-btn .ic svg { display: block; width: 100%; height: 100%; }
 .icon-btn.icon-only { padding: .38rem .42rem; }
