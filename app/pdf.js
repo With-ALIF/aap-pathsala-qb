@@ -242,10 +242,11 @@
     var meta = window.readPdfMeta(rows);
     if (!meta) return;
     window.savePdfOpts();
+    window.pdfProgressMode = 'preview';
     window.closePdf(true);
     window.buildPdfNode(rows, meta).then(function (node) {
       var scroll = window.$('pdfPrevScroll');
-      if (!scroll) return;
+      if (!scroll) { pdfProgress(-1, ''); return; }
       scroll.innerHTML = '';
       scroll.appendChild(node.cloneNode(true));
       var head = window.$('pdfPrevHead');
@@ -259,16 +260,19 @@
       var c = window.$('pdfPrevClose');
       if (c) { try { c.focus(); } catch (e) {} }
       var missing = Number(window.pdfMissingImages) || 0;
+      pdfProgress(100, 'প্রিভিউ প্রস্তুত');
       window.flashNote('প্রিভিউ দেখানো হচ্ছে — ভালো লাগলে “PDF নামান” চাপুন' +
         (missing ? ' (' + window.bnNum(missing) + 'টি ছবি লোড হয়নি)' : ''));
     }).catch(function (err) {
       console.error('[pdf] preview failed', err);
+      pdfProgress(-1, '');
       window.closePdfPreview();
       window.endPdfImport();
       window.flashNote('প্রিভিউ তৈরি হয়নি — ' + (err && err.message ? err.message : String(err)));
     }).then(function () {
       document.body.classList.remove('pdf-render');
       document.body.classList.remove('pdf-no-explain-images');
+      window.pdfProgressMode = '';
       window.setSelBusy(false);
       var container = window.$('paper');
       if (container) container.innerHTML = '';
@@ -456,15 +460,21 @@
     ctx.drawImage(src, 0, 0);
     return c;
   }
+  function pdfProgress(percent, label) {
+    if (typeof window.onPdfProgress !== 'function') return;
+    try { window.onPdfProgress(percent, label || '', window.pdfProgressMode || ''); } catch (e) {}
+  }
   function pdfPagesToBlob(pages) {
     var list = Array.prototype.slice.call(pages);
     if (!list.length) throw new Error('PDF তৈরি হয়নি');
     var total = list.length;
     PDF_OPT.html2canvas.scale = pdfRasterScale(total);
     window.setSelBusy(true, 'পেজ ' + window.num(1) + '/' + window.num(total) + ' রেন্ডার…');
+    pdfProgress(82, 'পেজ ' + window.bnNum(1) + '/' + window.bnNum(total) + ' রেন্ডার হচ্ছে…');
     return pdfPageChecked(list[0], 0, total).then(function (canvas0) {
       var fitted0 = pdfFitCanvas(canvas0);
       var w0 = html2pdf().set(PDF_OPT).from(fitted0);
+      pdfProgress(82 + Math.round(16 / total), 'পেজ ' + window.bnNum(1) + '/' + window.bnNum(total) + ' রেন্ডার হয়েছে…');
       return w0.to('pdf').then(function () { return w0.prop.pdf; });
     }).then(function (master) {
       var rest = list.slice(1);
@@ -481,18 +491,23 @@
           jpegs[i] = fitted.toDataURL('image/jpeg', 0.82);
           done++;
           window.setSelBusy(true, 'পেজ ' + window.num(done) + '/' + window.num(total) + ' রেন্ডার…');
+          pdfProgress(82 + (done / total) * 16, 'পেজ ' + window.bnNum(done) + '/' + window.bnNum(total) + ' রেন্ডার হয়েছে…');
           return worker();
         });
       }
       var jobs = [];
       for (var li = 0; li < Math.min(lanes, rest.length); li++) jobs.push(worker());
       return Promise.all(jobs).then(function () {
+        pdfProgress(98, 'সব পৃষ্ঠা রেন্ডার হয়েছে — PDF একত্র করা হচ্ছে…');
         for (var i = 0; i < jpegs.length; i++) {
           master.addPage();
           master.addImage(jpegs[i], 'JPEG', 0, 0, 210, 297);
         }
         return master.output('blob');
       });
+    }).then(function (blob) {
+      pdfProgress(100, 'PDF তৈরি হয়েছে');
+      return blob;
     });
   }
   function pdfNeedsManualTap() {
@@ -612,10 +627,12 @@
     if (window.csvStopPrefetch) window.csvStopPrefetch();
     var needed = window.pendingFor(rows);
     window.setSelBusy(true, 'শার্ড লোড হচ্ছে…');
+    pdfProgress(3, 'প্রশ্ন প্রস্তুত হচ্ছে…');
     window.flashNote('পরীক্ষাপত্রের জন্য শার্ড লোড হচ্ছে…');
     var loadPromise = needed.length ? Promise.all(needed.map(window.loadDat)) : Promise.resolve();
     return loadPromise.then(function () {
       window.setSelBusy(true, 'ছবি লোড হচ্ছে…');
+      pdfProgress(8, 'ছবি লোড হচ্ছে…');
       window.flashNote('পরীক্ষাপত্র প্রস্তুত হচ্ছে…');
       var container = window.$('paper');
       if (!container) throw new Error('প্রিন্ট এলাকা পাওয়া যায়নি');
@@ -639,14 +656,19 @@
         return window.imagesReady(node, wait);
       }
       return fontPromise.then(function () {
+        pdfProgress(18, 'লেআউট তৈরি হচ্ছে…');
         return buildPass(1500);
       }).then(function () {
+        pdfProgress(38, 'লেখা ও ছবি সাজানো হচ্ছে…');
         return pdfFontsSettled();
       }).then(function () {
+        pdfProgress(52, 'লেআউট ফাইনাল করা হচ্ছে…');
         return buildPass(1000).then(pdfFontsSettled);
       }).then(function () {
+        pdfProgress(68, 'ছবি ও লেখা স্থির করা হচ্ছে…');
         return pdfSettleImages(node);
       }).then(function () {
+        pdfProgress(78, 'পরীক্ষাপত্র প্রস্তুত');
         return node;
       });
     });
@@ -656,11 +678,13 @@
       window.flashNote('আগে অন্তত একটি প্রশ্ন নির্বাচন করুন');
       return;
     }
+    window.pdfProgressMode = 'pdf';
     window.buildPdfNode(rows, meta).then(function (node) {
       var baseName = meta.title || 'exam-paper';
       var safe = window.sanitizeName(baseName) || 'exam-paper';
       var filename = safe + '-' + rows.length + 'q-' + (meta.sets === 4 ? '4sets-' : '') + window.todayISO() + '.pdf';
       window.setSelBusy(true, 'PDF রূপান্তর…');
+      pdfProgress(82, 'PDF রূপান্তর শুরু হচ্ছে…');
       window.flashNote('PDF রূপান্তর হচ্ছে…');
       if (typeof html2pdf !== 'function') throw new Error('html2pdf লাইব্রেরি অনুপস্থিত');
       var pages = node.querySelectorAll('.pdf-page');
@@ -671,6 +695,7 @@
       });
     }).catch(function (err) {
       console.error('[pdf] generate failed', err);
+      pdfProgress(-1, '');
       var reason = err && err.message ? err.message : String(err);
       try { window.openPdfError(reason); } catch (e2) {}
       window.flashNote('সরাসরি PDF তৈরি হয়নি — প্রিন্ট ডায়ালগ খোলা হচ্ছে: ' + reason);
@@ -685,6 +710,7 @@
       document.body.classList.remove('pdf-render');
       document.body.classList.remove('pdf-no-explain-images');
       document.body.classList.remove('printing');
+      window.pdfProgressMode = '';
       window.setSelBusy(false);
       var container = window.$('paper');
       if (container) container.innerHTML = '';

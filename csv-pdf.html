@@ -101,6 +101,26 @@
 
 <div class="csvpdf-status" id="csvPdfStatus" hidden aria-live="polite"></div>
 
+<div class="csvpdf-progress" id="csvPdfProgress" hidden>
+  <div class="csvpdf-progress-card" role="dialog" aria-modal="true" aria-labelledby="csvPdfProgressHead">
+    <div class="csvpdf-progress-top">
+      <span class="csvpdf-progress-ico"><span class="ic" data-ic="fileText"></span></span>
+      <div class="csvpdf-progress-txt">
+        <h2 id="csvPdfProgressHead">PDF তৈরি হচ্ছে</h2>
+        <p id="csvPdfProgressPhase">প্রস্তুত হচ্ছে…</p>
+      </div>
+      <strong class="csvpdf-progress-pct" id="csvPdfProgressPct">০%</strong>
+    </div>
+    <div class="csvpdf-progress-track" id="csvPdfProgressBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <span class="csvpdf-progress-fill" id="csvPdfProgressFill"></span>
+    </div>
+    <div class="csvpdf-progress-foot">
+      <span id="csvPdfProgressDetail">অনুগ্রহ করে অপেক্ষা করুন…</span>
+      <span id="csvPdfProgressLive" aria-live="polite"></span>
+    </div>
+  </div>
+</div>
+
 <!-- PDF settings -->
 <div class="modal-back" id="pdfModal" hidden>
   <div class="modal pdf-modal" role="dialog" aria-modal="true" aria-labelledby="pdfHead">

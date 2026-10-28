@@ -82,6 +82,50 @@
     }
   };
 
+  // The shared PDF renderer calls this with a percentage while it prepares
+  // the paper and rasterises each page. It is a no-op on pages that do not
+  // provide a progress UI.
+  var progressHideTimer = 0;
+  window.onPdfProgress = function (percent, label, mode) {
+    var box = $('csvPdfProgress');
+    if (!box) return;
+    clearTimeout(progressHideTimer);
+    if (percent == null || percent < 0) {
+      box.hidden = true;
+      document.body.classList.remove('csvpdf-progressing');
+      return;
+    }
+    percent = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
+    box.hidden = false;
+    document.body.classList.add('csvpdf-progressing');
+    var status = $('csvPdfStatus');
+    if (status) status.hidden = true;
+    var head = $('csvPdfProgressHead');
+    if (head) head.textContent = mode === 'preview' ? 'প্রিভিউ তৈরি হচ্ছে' : 'PDF তৈরি হচ্ছে';
+    var phase = $('csvPdfProgressPhase');
+    if (phase) phase.textContent = label || 'প্রস্তুত হচ্ছে…';
+    var pct = $('csvPdfProgressPct');
+    if (pct) pct.textContent = bn(percent) + '%';
+    var fill = $('csvPdfProgressFill');
+    if (fill) fill.style.width = percent + '%';
+    var bar = $('csvPdfProgressBar');
+    if (bar) bar.setAttribute('aria-valuenow', String(percent));
+    var detail = $('csvPdfProgressDetail');
+    if (detail) {
+      if (percent >= 100) detail.textContent = mode === 'preview' ? 'প্রিভিউ প্রস্তুত' : 'PDF ফাইল প্রস্তুত';
+      else if (/পেজ|পৃষ্ঠা/.test(label || '')) detail.textContent = 'প্রতিটি পৃষ্ঠা ছবিতে রূপান্তর করা হচ্ছে…';
+      else detail.textContent = 'অনুগ্রহ করে অপেক্ষা করুন…';
+    }
+    var live = $('csvPdfProgressLive');
+    if (live) live.textContent = percent >= 100 ? '✓' : '';
+    if (percent >= 100) {
+      progressHideTimer = setTimeout(function () {
+        box.hidden = true;
+        document.body.classList.remove('csvpdf-progressing');
+      }, 900);
+    }
+  };
+
   // ---------------- preferences (separate from the main PDF preset) ----------------
   window.loadPdfOpts = function () {
     try { return JSON.parse(localStorage.getItem(OPT_KEY) || '{}') || {}; } catch (e) { return {}; }
