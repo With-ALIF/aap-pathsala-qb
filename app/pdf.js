@@ -69,6 +69,8 @@
     }
     var ans = window.$('pdfAns');
     if (ans) ans.value = o.answers === false ? 'no' : 'yes';
+    var imgEl = window.$('pdfImages');
+    if (imgEl) imgEl.checked = o.images !== false;
     var setsEl = window.$('pdfSets');
     if (setsEl) setsEl.checked = (o.sets === 4 || o.sets === true);
     var qEl = window.$('pdfQSize');
@@ -85,9 +87,14 @@
     var qEl = window.$('pdfQSize'), hEl = window.$('pdfHSize'), opEl = window.$('pdfWmOp');
     var ansEl = window.$('pdfAns');
     var setsEl = window.$('pdfSets');
+    var imgEl = window.$('pdfImages');
+    // A CSV filename is a one-off title; never leak it into the saved preset
+    // (otherwise the next normal paper silently reuses the imported filename).
+    var imported = !!(window.pdfImportRows && window.pdfImportRows.length);
+    var savedTitle = imported ? (window.loadPdfOpts().title || '') : v('pdfTitleIn');
     try {
       localStorage.setItem('qb_pdf_opts', JSON.stringify({
-        title: v('pdfTitleIn'),
+        title: savedTitle,
         tutor: v('pdfTutor'),
         subject: v('pdfSubj'),
         marks: v('pdfMarks'),
@@ -98,7 +105,8 @@
         wmTransparency: opEl && Number(opEl.value) > 0 ? Number(opEl.value) : 90,
         footerL: v('pdfFootL'),
         footerR: v('pdfFootR'),
-        answers: !(ansEl && ansEl.value === 'no')
+        answers: !(ansEl && ansEl.value === 'no'),
+        images: imported ? (window.loadPdfOpts().images !== false) : !!(imgEl && imgEl.checked)
       }));
     } catch (e) {}
   };
@@ -130,6 +138,7 @@
     if (!(wmOp > 0.01)) wmOp = 0.02;
     var ansEl = window.$('pdfAns');
     var setsEl = window.$('pdfSets');
+    var imgEl = window.$('pdfImages');
     return {
       title: v('pdfTitleIn') || (window.pdfImportRows && window.pdfImportRows.length
         ? 'পরীক্ষাপত্র'
@@ -147,7 +156,8 @@
       wmOpacity: wmOp,
       footerL: v('pdfFootL'),
       footerR: v('pdfFootR'),
-      answers: !(ansEl && ansEl.value === 'no')
+      answers: !(ansEl && ansEl.value === 'no'),
+      images: !(imgEl && imgEl.checked === false)
     };
   };
   window.updateDurationHint = function () {
@@ -241,14 +251,16 @@
       var head = window.$('pdfPrevHead');
       if (head) {
         head.textContent = 'প্রিভিউ — ' + (meta.sets === 4 ? '৪টি সেট (A, B, C, D)' : (meta.answers !== false ? 'উত্তরসহ' : 'উত্তর ছাড়া')) +
-          ' · ' + window.num(rows.length) + 'টি প্রশ্ন';
+          ' · ' + window.bnNum(rows.length) + 'টি প্রশ্ন';
       }
       var pv = window.$('pdfPreview');
       if (pv) pv.hidden = false;
       scroll.scrollTop = 0;
       var c = window.$('pdfPrevClose');
       if (c) { try { c.focus(); } catch (e) {} }
-      window.flashNote('প্রিভিউ দেখানো হচ্ছে — ভালো লাগলে “PDF নামান” চাপুন');
+      var missing = Number(window.pdfMissingImages) || 0;
+      window.flashNote('প্রিভিউ দেখানো হচ্ছে — ভালো লাগলে “PDF নামান” চাপুন' +
+        (missing ? ' (' + window.bnNum(missing) + 'টি ছবি লোড হয়নি)' : ''));
     }).catch(function (err) {
       console.error('[pdf] preview failed', err);
       window.closePdfPreview();
@@ -256,6 +268,7 @@
       window.flashNote('প্রিভিউ তৈরি হয়নি — ' + (err && err.message ? err.message : String(err)));
     }).then(function () {
       document.body.classList.remove('pdf-render');
+      document.body.classList.remove('pdf-no-explain-images');
       window.setSelBusy(false);
       var container = window.$('paper');
       if (container) container.innerHTML = '';
@@ -268,8 +281,15 @@
     if (scroll) scroll.innerHTML = '';
     window.endPdfImport();
   };
-  function pdfRasterScale() {
+  function pdfRasterScale(pageCount) {
     var cores = navigator.hardwareConcurrency || 4;
+    var pages = Number(pageCount) || 1;
+    // A 200-question CSV can become 20+ A4 pages. Rendering every page at
+    // 1.5x is needlessly slow (and memory-hungry), so ease off only when the
+    // document is genuinely large. Short papers keep full quality.
+    if (pages >= 30) return 1;
+    if (pages >= 14) return 1.1;
+    if (pages >= 8) return cores >= 8 ? 1.25 : 1.15;
     return cores >= 8 ? 1.5 : 1.25;
   }
   var PDF_OPT = {
@@ -290,6 +310,35 @@
     pagebreak: { mode: [] }
   };
   var PDF_BLANK_INK = 15;
+  // Remote CSV images can fail (offline, CORS, dead host). html2canvas would
+  // otherwise sit on imageTimeout for every page. Wait once for the whole
+  // document, then replace anything still broken with a visible placeholder.
+  function pdfSettleImages(node) {
+    window.pdfMissingImages = 0;
+    if (!node) return Promise.resolve();
+    function missing(img) {
+      window.pdfMissingImages++;
+      var ph = document.createElement('span');
+      ph.className = 'pdf-img-missing';
+      ph.textContent = 'ছবি লোড হয়নি';
+      var w = Number(img.getAttribute('width')) || 0;
+      if (w > 0 && w < 320) ph.style.width = w + 'px';
+      if (img.parentNode) img.parentNode.replaceChild(ph, img);
+    }
+    return window.imagesReady(node, 1500).then(function () {
+      var imgs = Array.prototype.slice.call(node.querySelectorAll('img'));
+      for (var i = 0; i < imgs.length; i++) {
+        var img = imgs[i];
+        // Only replace images that actually errored. A slow remote image is
+        // still allowed to arrive; replacing every pending image made an
+        // image-heavy CSV look like all its pictures were broken.
+        if (img.complete && !img.naturalWidth) missing(img);
+        else if (!img.complete) {
+          img.addEventListener('error', function () { missing(this); }, { once: true });
+        }
+      }
+    });
+  }
   function pdfFontsSettled() {
     if (!document.fonts || !document.fonts.ready) return Promise.resolve();
     var jobs = [document.fonts.ready];
@@ -413,6 +462,7 @@
     var list = Array.prototype.slice.call(pages);
     if (!list.length) throw new Error('PDF তৈরি হয়নি');
     var total = list.length;
+    PDF_OPT.html2canvas.scale = pdfRasterScale(total);
     window.setSelBusy(true, 'পেজ ' + window.num(1) + '/' + window.num(total) + ' রেন্ডার…');
     return pdfPageChecked(list[0], 0, total).then(function (canvas0) {
       var fitted0 = pdfFitCanvas(canvas0);
@@ -421,7 +471,8 @@
     }).then(function (master) {
       var rest = list.slice(1);
       var jpegs = new Array(rest.length);
-      var lanes = (navigator.hardwareConcurrency || 4) >= 8 ? 2 : 1;
+      var cores = navigator.hardwareConcurrency || 4;
+      var lanes = cores >= 8 ? (rest.length >= 8 ? 3 : 2) : 1;
       var cursor = 0;
       var done = 1;
       function worker() {
@@ -526,6 +577,11 @@
         ? 'ফাইলটি একবার না নামলে “PDF নামান” বোতামে চাপুন।'
         : '';
     }
+    var missing = Number(window.pdfMissingImages) || 0;
+    if (missing && window.$('pdfSaveNote')) {
+      window.$('pdfSaveNote').textContent = 'তৈরি PDF-এ ' + window.bnNum(missing) +
+        'টি ছবি লোড হয়নি — সেগুলোর জায়গায় “ছবি লোড হয়নি” লেখা আছে।';
+    }
     modal.hidden = false;
     try { if (link) link.focus(); } catch (e) {}
     window.flashNote(auto ? 'PDF ডাউনলোড শুরু হয়েছে' : 'PDF তৈরি হয়েছে — “PDF নামান” চাপুন');
@@ -566,10 +622,20 @@
       if (!container) throw new Error('প্রিন্ট এলাকা পাওয়া যায়নি');
       container.innerHTML = '';
       document.body.classList.add('pdf-render');
+      document.body.classList.toggle('pdf-no-explain-images', meta && meta.images === false);
       var fontPromise = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
       var node = null;
       function buildPass(wait) {
         node = window.buildPaper(rows, meta);
+        if (meta && meta.images === false) {
+          // Drop only explanation screenshots. Question/option images are
+          // still included; removing the elements (not just hiding them)
+          // stops the browser downloading 100+ slow remote images.
+          var imgs = Array.prototype.slice.call(node.querySelectorAll('.psol-e img'));
+          for (var ii = 0; ii < imgs.length; ii++) {
+            if (imgs[ii].parentNode) imgs[ii].parentNode.removeChild(imgs[ii]);
+          }
+        }
         window.eagerImgs(node);
         return window.imagesReady(node, wait);
       }
@@ -579,6 +645,8 @@
         return pdfFontsSettled();
       }).then(function () {
         return buildPass(1000).then(pdfFontsSettled);
+      }).then(function () {
+        return pdfSettleImages(node);
       }).then(function () {
         return node;
       });
@@ -616,6 +684,7 @@
       } catch (e) {}
     }).then(function () {
       document.body.classList.remove('pdf-render');
+      document.body.classList.remove('pdf-no-explain-images');
       document.body.classList.remove('printing');
       window.setSelBusy(false);
       var container = window.$('paper');

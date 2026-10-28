@@ -305,6 +305,9 @@
     var mcq = 0;
     var written = 0;
     var noAns = 0;
+    var images = 0;
+    var qImages = 0;
+    var eImages = 0;
 
     for (var i = 0; i < data.length; i++) {
       var row = data[i] || [];
@@ -346,6 +349,12 @@
       var p = -(rows.length + 1);
       var qHtml = htmlOf(qRaw);
       var explHtml = explRaw && meaningful(explRaw) ? htmlOf(explRaw) : '';
+      var qImgHtml = qHtml + opts.map(function (op) { return op.h; }).join(' ');
+      var rowQImages = (qImgHtml.match(/<img\b/gi) || []).length;
+      var rowEImages = (explHtml.match(/<img\b/gi) || []).length;
+      qImages += rowQImages;
+      eImages += rowEImages;
+      images += rowQImages + rowEImages;
       var full = {
         p: p,
         q: qHtml,
@@ -370,6 +379,10 @@
     }
 
     if (!rows.length) throw new Error('কোনো বৈধ প্রশ্ন পাওয়া যায়নি');
+    if (images >= 30) {
+      warnings.push('এই CSV-তে ' + bn(images) + 'টি ছবি আছে — PDF তৈরি হতে সময় লাগতে পারে। ' +
+        'দ্রুত PDF-এর জন্য সেটিংসে “ব্যাখ্যার ছবি যুক্ত করুন” বন্ধ রাখুন।');
+    }
     window.DATMAP[SHARD] = dat;
     return {
       name: name || '',
@@ -379,7 +392,10 @@
       warnings: warnings,
       mcq: mcq,
       written: written,
-      noAns: noAns
+      noAns: noAns,
+      images: images,
+      qImages: qImages,
+      eImages: eImages
     };
   }
 
@@ -429,6 +445,57 @@
     return c;
   }
 
+  // The testmoz image host can be slow when a paper has 100+ pictures. Warm
+  // the browser cache while the user is still on the CSV/PDF settings screen,
+  // so preview and PDF generation do not have to start every download.
+  var prefetchToken = 0;
+  function prefetchCsvImages(st) {
+    var token = ++prefetchToken;
+    var seen = {};
+    Object.keys(st.dat || {}).forEach(function (key) {
+      var full = st.dat[key] || {};
+      var html = String(full.q || '') + String(full.e || '');
+      (full.o || []).forEach(function (op) { html += String(op.h || ''); });
+      var re = /<img\b[^>]*\bsrc=["']([^"']+)["']/gi;
+      var m;
+      while ((m = re.exec(html))) {
+        var url = m[1];
+        if (/^https?:\/\//i.test(url)) seen[url] = 1;
+      }
+    });
+    var urls = Object.keys(seen);
+    if (!urls.length) return;
+    window.__csvImgPrefetch = window.__csvImgPrefetch || {};
+    var cache = window.__csvImgPrefetch;
+    var idx = 0;
+    var active = 0;
+    function next() {
+      if (token !== prefetchToken) return;
+      while (active < 4 && idx < urls.length) {
+        var url = urls[idx++];
+        if (cache[url]) continue;
+        active++;
+        (function (u) {
+          var im = new Image();
+          var done = false;
+          var timer = setTimeout(function () { finish(false); }, 20000);
+          function finish(ok) {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            active--;
+            if (ok) cache[u] = im;
+            next();
+          }
+          im.onload = function () { finish(true); };
+          im.onerror = function () { finish(false); };
+          im.src = u;
+        })(url);
+      }
+    }
+    next();
+  }
+
   function renderState(st) {
     var result = $('csvImportResult');
     if (result) result.hidden = false;
@@ -440,6 +507,7 @@
       stats.appendChild(chip('মোট', st.rows.length));
       stats.appendChild(chip('MCQ', st.mcq));
       stats.appendChild(chip('লিখিত', st.written));
+      if (st.images) stats.appendChild(chip('ছবি', st.images));
       if (st.noAns) stats.appendChild(chip('উত্তরহীন', st.noAns, true));
     }
 
@@ -535,6 +603,9 @@
         var st = buildState(String(reader.result || ''), file.name || 'CSV');
         window.csvImportState = st;
         renderState(st);
+        // For a huge explanation-image set the PDF starts with those images
+        // off, so do not spend bandwidth preloading all of them.
+        if (st.eImages < 30) prefetchCsvImages(st);
       } catch (err) {
         window.csvImportState = null;
         var result = $('csvImportResult');
@@ -558,11 +629,27 @@
     window.pdfImportName = st.name || '';
     window.closeCsvImport();
     window.openPdfModal();
-    // a filename is a much better starting title than the generic fallback
+    // A filename is a better starting title than the generic fallback. Always
+    // use this CSV's name — a previous imported/normal title must not linger.
     var title = $('pdfTitleIn');
-    if (title && !String(title.value || '').trim()) {
+    if (title) {
       var base = String(st.name || '').replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
-      if (base) title.value = base;
+      title.value = base || '';
+    }
+    // A 200-question CSV can carry 100+ explanation screenshots. Waiting for
+    // all of them makes a PDF feel stuck, so start fast by default; the user
+    // can switch images back on in the same settings screen.
+    var imgToggle = $('pdfImages');
+    var fastDefault = st.eImages >= 30;
+    if (imgToggle) {
+      imgToggle.checked = !fastDefault && window.loadPdfOpts().images !== false;
+    }
+    if (fastDefault) {
+      var note = $('pdfNote');
+      if (note) {
+        note.textContent = 'অনেক ব্যাখ্যা-ছবি আছে — দ্রুত PDF-এর জন্য ছবি বন্ধ রাখা হয়েছে।';
+        note.className = 'modal-note';
+      }
     }
   };
 
@@ -648,5 +735,18 @@
     if (sample) sample.addEventListener('click', window.csvImportSample);
     var go = $('csvImportGo');
     if (go) go.addEventListener('click', window.csvImportStartPdf);
+    var imgToggle = $('pdfImages');
+    if (imgToggle) {
+      imgToggle.addEventListener('change', function () {
+        var note = $('pdfNote');
+        if (imgToggle.checked) {
+          if (note && /অনেক ব্যাখ্যা-ছবি/.test(note.textContent)) {
+            note.textContent = '';
+            note.className = 'modal-note';
+          }
+          if (window.csvImportState) prefetchCsvImages(window.csvImportState);
+        }
+      });
+    }
   };
 })();

@@ -295,24 +295,52 @@
         });
         return table;
       }
+      // A large paper (e.g. 200 CSV questions in 4 sets) cannot fit every
+      // answer in one compact table. Split into page-sized chunks instead of
+      // letting the table run off the bottom of the A4 page.
+      function keyPagesFor(label, key) {
+        var CHUNK = 12 * 24; // 24 rows of 12 answers
+        var chunks = [];
+        for (var i = 0; i < key.length; i += CHUNK) chunks.push(key.slice(i, i + CHUNK));
+        chunks.forEach(function (chunk, ci) {
+          var title = 'উত্তর তালিকা';
+          if (label) title += ' — সেট ' + label;
+          if (chunks.length > 1) {
+            title += ' (' + window.bnNum(ci + 1) + '/' + window.bnNum(chunks.length) + ')';
+          }
+          var kp = newPage(sectionHead(title));
+          kp.page.insertBefore(keyTable(chunk, true), kp.page.querySelector('.pdf-cols'));
+        });
+      }
       if (sets > 1) {
         var parts = setOrders.map(function (order, si) {
           return { label: labels[si], key: keyFor(order) };
         }).filter(function (part) { return part.key.length; });
         if (parts.length) {
-          var kpage = newPage(sectionHead('উত্তর তালিকা — সেট A, B, C, D'));
-          var wrapKeys = window.el('div', 'pq-keysets');
-          parts.forEach(function (part) {
-            wrapKeys.appendChild(window.el('div', 'pq-keyset-label', 'সেট ' + part.label));
-            wrapKeys.appendChild(keyTable(part.key, true));
-          });
-          kpage.page.insertBefore(wrapKeys, kpage.page.querySelector('.pdf-cols'));
+          var keyRows = parts.reduce(function (n, part) {
+            return n + Math.ceil(part.key.length / 12);
+          }, 0);
+          if (keyRows > 30) {
+            parts.forEach(function (part) { keyPagesFor(part.label, part.key); });
+          } else {
+            var kpage = newPage(sectionHead('উত্তর তালিকা — সেট A, B, C, D'));
+            var wrapKeys = window.el('div', 'pq-keysets');
+            parts.forEach(function (part) {
+              wrapKeys.appendChild(window.el('div', 'pq-keyset-label', 'সেট ' + part.label));
+              wrapKeys.appendChild(keyTable(part.key, true));
+            });
+            kpage.page.insertBefore(wrapKeys, kpage.page.querySelector('.pdf-cols'));
+          }
         }
       } else {
         var key = keyFor(setOrders[0]);
         if (key.length) {
-          var kpage1 = newPage(sectionHead('উত্তর তালিকা'));
-          kpage1.page.insertBefore(keyTable(key, false), kpage1.page.querySelector('.pdf-cols'));
+          if (key.length > 240) {
+            keyPagesFor('', key);
+          } else {
+            var kpage1 = newPage(sectionHead('উত্তর তালিকা'));
+            kpage1.page.insertBefore(keyTable(key, false), kpage1.page.querySelector('.pdf-cols'));
+          }
         }
       }
 

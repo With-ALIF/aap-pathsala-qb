@@ -1411,6 +1411,7 @@ body.pdf-render .pdf-page:not(:last-child) {
 .pq-body { flex: 1 1 auto; min-width: 0; }
 .pq-body img { max-width: 100%; height: auto; }
 .pq-body p { margin: 0 0 .2rem; }
+body.pdf-render.pdf-no-explain-images .pdf-page .psol-e img { display: none !important; }
 .pq-opts {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1422,6 +1423,17 @@ body.pdf-render .pdf-page:not(:last-child) {
 .pq-key { font-weight: 400; flex: none; }
 .pq-val { min-width: 0; }
 .pq-val img { max-width: 100%; height: auto; }
+.pdf-img-missing {
+  display: inline-block;
+  max-width: 100%;
+  padding: 3px 7px;
+  border: 1px dashed #9aa0a6;
+  border-radius: 4px;
+  color: #666;
+  font-size: 9px;
+  line-height: 1.4;
+  vertical-align: middle;
+}
 
 .pq-sechead { margin-bottom: 10px; }
 .pq-sechead h2 { margin: 0 0 2px; font-weight: 700; color: #111; }
