@@ -220,12 +220,13 @@
   }
   function proxyImageHtml(html) {
     return String(html == null ? '' : html).replace(
-      /(<img\b[^>]*\bsrc=["'])(https?:\/\/testmozusercontent\.com\/[^"']+)(["'])/gi,
+      /(<img\b[^>]*?(?:^|\s)src\s*=\s*["'])(https?:\/\/testmozusercontent\.com\/[^"']+)(["'])/gi,
       function (m, pre, url, post) {
-        var proxy = 'https://images.weserv.nl/?url=' + encodeURIComponent(url) +
+        var original = canonicalUrl(url);
+        var proxy = 'https://images.weserv.nl/?url=' + encodeURIComponent(original) +
           '&w=1000&output=jpg&q=82';
         return pre + proxy + post + ' data-orig-src="' +
-          url.replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '"';
+          original.replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '"';
       }
     );
   }
@@ -548,25 +549,109 @@
 
   // ---------------- image prefetch ----------------
   window.csvStopPrefetch = function () { prefetchToken++; };
-  function collectImageUrls(st) {
+  var imagePromises = Object.create(null);
+  function canonicalUrl(url) {
+    return String(url == null ? '' : url)
+      .replace(/&amp;/gi, '&')
+      .replace(/&#0*38;/gi, '&');
+  }
+  function imageUrlsFromHtml(html, seen) {
+    // Match the actual src attribute only. A loose \bsrc also matches
+    // data-orig-src (the fallback URL), which made prefetch warm the wrong
+    // URL and left the resized proxy images uncached.
+    var re = /<img\b[^>]*?(?:^|\s)src\s*=\s*["']([^"']+)["']/gi;
+    var m;
+    while ((m = re.exec(String(html || '')))) {
+      var url = canonicalUrl(m[1]);
+      if (/^https?:\/\//i.test(url)) seen[url] = 1;
+    }
+  }
+  function fullHtml(full) {
+    var html = String(full.q || '') + String(full.e || '');
+    (full.o || []).forEach(function (op) { html += String(op.h || ''); });
+    return html;
+  }
+  function collectImageUrls(st, includeExplanation) {
     var seen = Object.create(null);
-    Object.keys(st.dat || {}).forEach(function (key) {
+    Object.keys((st && st.dat) || {}).forEach(function (key) {
       var full = st.dat[key] || {};
-      var html = String(full.q || '') + String(full.e || '');
-      (full.o || []).forEach(function (op) { html += String(op.h || ''); });
-      var re = /<img\b[^>]*\bsrc=["']([^"']+)["']/gi;
-      var m;
-      while ((m = re.exec(html))) {
-        var url = m[1];
-        if (/^https?:\/\//i.test(url)) seen[url] = 1;
-      }
+      var html = includeExplanation === false
+        ? String(full.q || '') + (full.o || []).map(function (op) { return String(op.h || ''); }).join(' ')
+        : fullHtml(full);
+      imageUrlsFromHtml(html, seen);
     });
     return Object.keys(seen);
+  }
+  function collectImageUrlsFromRows(rows, includeExplanation) {
+    var seen = Object.create(null);
+    (rows || []).forEach(function (rec) {
+      var sh = rec._sh != null ? rec._sh : rec.__shard;
+      var full = (window.DATMAP[sh] || {})[rec.p] || {};
+      var html = includeExplanation === false
+        ? String(full.q || '') + (full.o || []).map(function (op) { return String(op.h || ''); }).join(' ')
+        : fullHtml(full);
+      imageUrlsFromHtml(html, seen);
+    });
+    return Object.keys(seen);
+  }
+  function proxyOriginal(url) {
+    var m = /[?&]url=([^&]+)/.exec(String(url || ''));
+    if (!m) return '';
+    try { return canonicalUrl(decodeURIComponent(m[1])); } catch (e) { return ''; }
+  }
+  function rememberSize(url, img) {
+    if (!img || !img.naturalWidth || !img.naturalHeight || !window.IMG_SIZE) return;
+    window.IMG_SIZE[url] = [img.naturalWidth, img.naturalHeight];
+  }
+  function loadImage(url, timeoutMs) {
+    var u = canonicalUrl(url);
+    if (!u) return Promise.resolve(false);
+    if (window.IMG_SIZE && window.IMG_SIZE[u]) return Promise.resolve(true);
+    if (imagePromises[u]) return imagePromises[u];
+    var p = new Promise(function (resolve) {
+      var im = new Image();
+      var done = false;
+      var timer = 0;
+      var original = proxyOriginal(u);
+      function finish(ok) {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        if (ok) {
+          prefetchCache[u] = im;
+          rememberSize(u, im);
+          if (original) rememberSize(original, im);
+        } else {
+          delete imagePromises[u];
+        }
+        resolve(!!ok);
+      }
+      timer = setTimeout(function () { finish(false); }, timeoutMs || 20000);
+      im.onload = function () {
+        finish(!!(im.naturalWidth && im.naturalHeight));
+      };
+      im.onerror = function () {
+        if (original && !im.__origTried) {
+          im.__origTried = true;
+          try { im.src = original; } catch (e) { finish(false); }
+          return;
+        }
+        finish(false);
+      };
+      try {
+        im.src = u;
+      } catch (e) {
+        finish(false);
+      }
+      if (im.complete && im.naturalWidth && im.naturalHeight) finish(true);
+    });
+    imagePromises[u] = p;
+    return p;
   }
   function prefetchImages(st) {
     if (!st) return;
     var token = ++prefetchToken;
-    var urls = collectImageUrls(st);
+    var urls = collectImageUrls(st, true);
     if (!urls.length) return;
     var idx = 0;
     var active = 0;
@@ -574,28 +659,67 @@
       if (token !== prefetchToken) return;
       while (active < 4 && idx < urls.length) {
         var url = urls[idx++];
-        if (prefetchCache[url]) continue;
+        if (prefetchCache[url] || (window.IMG_SIZE && window.IMG_SIZE[url])) continue;
         active++;
-        (function (u) {
-          var im = new Image();
-          var done = false;
-          var timer = setTimeout(function () { finish(false); }, 20000);
-          function finish(ok) {
-            if (done) return;
-            done = true;
-            clearTimeout(timer);
-            active--;
-            if (ok) prefetchCache[u] = im;
-            next();
-          }
-          im.onload = function () { finish(true); };
-          im.onerror = function () { finish(false); };
-          im.src = u;
-        })(url);
+        loadImage(url, 20000).then(function () {
+          active--;
+          next();
+        }, function () {
+          active--;
+          next();
+        });
       }
     }
     next();
   }
+  // Called by the PDF renderer before layout. Waiting here makes pagination
+  // use real image aspect ratios instead of the zero-size placeholders that
+  // a not-yet-loaded <img> has. Without this an image-heavy CSV can paginate
+  // one way and then overflow or cut off when the images arrive.
+  window.csvEnsureImages = function (rows, includeExplanation) {
+    var urls = rows && rows.length
+      ? collectImageUrlsFromRows(rows, includeExplanation)
+      : (current ? collectImageUrls(current, includeExplanation) : []);
+    if (!urls.length) return Promise.resolve();
+    var pending = [];
+    for (var i = 0; i < urls.length; i++) {
+      if (!(window.IMG_SIZE && window.IMG_SIZE[urls[i]]) && !prefetchCache[urls[i]]) {
+        pending.push(urls[i]);
+      }
+    }
+    if (!pending.length) return Promise.resolve();
+    var done = 0;
+    var reporting = true;
+    var jobs = pending.map(function (url) {
+      return loadImage(url, 20000).then(function (ok) {
+        done++;
+        if (reporting && typeof window.onPdfProgress === 'function') {
+          try {
+            window.onPdfProgress(8, 'ছবি লোড হচ্ছে… (' + bn(done) + '/' + bn(pending.length) + ')',
+              window.pdfProgressMode || 'pdf');
+          } catch (e) {}
+        }
+        return ok;
+      }, function () { return false; });
+    });
+    var all = Promise.all(jobs).then(function (value) {
+      reporting = false;
+      return value;
+    }, function () {
+      reporting = false;
+    });
+    var timer = new Promise(function (resolve) {
+      setTimeout(function () {
+        // Once layout has started, a late image must not move the progress
+        // bar back to the image-loading phase.
+        reporting = false;
+        resolve();
+      }, 20000);
+    });
+    return Promise.race([all, timer]).then(function () {
+      reporting = false;
+    });
+  };
 
   // ---------------- UI ----------------
   function setNote(msg, isError) {
@@ -617,6 +741,7 @@
   }
   function resetUi() {
     readToken++;
+    if (window.csvStopPrefetch) window.csvStopPrefetch();
     current = null;
     window.csvPdfState = null;
     if (window.endPdfImport) window.endPdfImport();
@@ -762,8 +887,6 @@
       var base = String(st.name || '').replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
       title.value = base || '';
     }
-    var imgToggle = $('pdfImages');
-    if (imgToggle) imgToggle.checked = true;
     if (st.eImages >= 30) {
       var note = $('pdfNote');
       if (note) {

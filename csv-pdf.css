@@ -192,7 +192,7 @@
   position: fixed;
   left: 50%;
   bottom: 1rem;
-  z-index: 120;
+  z-index: 90;
   max-width: min(92vw, 720px);
   padding: .58rem .9rem;
   border: 1px solid var(--border);

@@ -333,7 +333,7 @@
     // A remote image that is still pending must not be allowed to make
     // html2canvas retry a whole page three times. Give the document one
     // shared image budget, then replace whatever is left with a placeholder.
-    return window.imagesReady(node, 10000).then(function () {
+    return window.imagesReady(node, 15000).then(function () {
       var imgs = Array.prototype.slice.call(node.querySelectorAll('img'));
       for (var i = 0; i < imgs.length; i++) {
         var img = imgs[i];
@@ -343,15 +343,17 @@
   }
   function pdfFontsSettled() {
     if (!document.fonts || !document.fonts.ready) return Promise.resolve();
-    var jobs = [document.fonts.ready];
+    var jobs = [document.fonts.ready && document.fonts.ready.catch
+      ? document.fonts.ready.catch(function () {})
+      : document.fonts.ready];
     ['11px "SolaimanLipi"', '600 11px "SolaimanLipi"', '700 11px "SolaimanLipi"', '16px "KaTeX_Main"', 'italic 16px "KaTeX_Math"', '16px "KaTeX_AMS"', '16px "KaTeX_Size1"'].forEach(function (f) {
       try {
         var p = document.fonts.load(f);
-        if (p && p.catch) p.catch(function () {});
-        jobs.push(p);
+        if (p && p.catch) p = p.catch(function () {});
+        if (p) jobs.push(p);
       } catch (e) {}
     });
-    return Promise.all(jobs);
+    return Promise.all(jobs).catch(function () {});
   }
   function pdfPageCanvas(pageEl) {
     return pdfSvgToImg(pageEl).then(function () {
@@ -480,7 +482,13 @@
       var rest = list.slice(1);
       var jpegs = new Array(rest.length);
       var cores = navigator.hardwareConcurrency || 4;
+      var mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
       var lanes = cores >= 8 ? (rest.length >= 8 ? 3 : 2) : 1;
+      // Very large papers (especially 4-set CSV papers) can exhaust canvas
+      // memory when several A4 pages are rasterised at once. Keep a little
+      // parallelism for speed, but back off on mobile and long documents.
+      if (total >= 30) lanes = Math.min(lanes, 2);
+      if (mobile) lanes = total >= 30 ? 1 : Math.min(lanes, 2);
       var cursor = 0;
       var done = 1;
       function worker() {
@@ -531,7 +539,7 @@
   function scheduleRevoke(url) {
     setTimeout(function () {
       if (saveUrl === url) revokeSaveUrl();
-    }, 60000);
+    }, 600000);
   }
   window.closePdfSave = function () {
     var modal = window.$('pdfSaveModal');
@@ -624,8 +632,15 @@
     else window.flashNote('PDF তৈরি করা যায়নি: ' + message);
   };
   window.buildPdfNode = function (rows, meta) {
-    if (window.csvStopPrefetch) window.csvStopPrefetch();
     var needed = window.pendingFor(rows);
+    var imagePromise = Promise.resolve();
+    try {
+      if (typeof window.csvEnsureImages === 'function') {
+        imagePromise = Promise.resolve(
+          window.csvEnsureImages(rows, !(meta && meta.images === false))
+        ).catch(function () {});
+      }
+    } catch (e) {}
     window.setSelBusy(true, 'শার্ড লোড হচ্ছে…');
     pdfProgress(3, 'প্রশ্ন প্রস্তুত হচ্ছে…');
     window.flashNote('পরীক্ষাপত্রের জন্য শার্ড লোড হচ্ছে…');
@@ -634,12 +649,17 @@
       window.setSelBusy(true, 'ছবি লোড হচ্ছে…');
       pdfProgress(8, 'ছবি লোড হচ্ছে…');
       window.flashNote('পরীক্ষাপত্র প্রস্তুত হচ্ছে…');
+      return imagePromise;
+    }).then(function () {
+      if (window.csvStopPrefetch) window.csvStopPrefetch();
       var container = window.$('paper');
       if (!container) throw new Error('প্রিন্ট এলাকা পাওয়া যায়নি');
       container.innerHTML = '';
       document.body.classList.add('pdf-render');
       document.body.classList.toggle('pdf-no-explain-images', meta && meta.images === false);
-      var fontPromise = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+      var fontPromise = (document.fonts && document.fonts.ready)
+        ? document.fonts.ready.catch(function () {})
+        : Promise.resolve();
       var node = null;
       function buildPass(wait) {
         node = window.buildPaper(rows, meta);

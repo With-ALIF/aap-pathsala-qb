@@ -1410,7 +1410,7 @@ body.pdf-render .pdf-page:not(:last-child) {
 .pq-q { display: flex; align-items: flex-start; gap: 5px; margin: 0 0 3px; font-weight: 700; }
 .pq-n { flex: none; font-weight: 700; }
 .pq-body { flex: 1 1 auto; min-width: 0; }
-.pq-body img { max-width: 100%; height: auto; }
+.pq-body img { max-width: 100%; max-height: 210mm; height: auto; }
 .pq-body p { margin: 0 0 .2rem; }
 body.pdf-render.pdf-no-explain-images .pdf-page .psol-e img { display: none !important; }
 .pq-opts {
@@ -1423,7 +1423,7 @@ body.pdf-render.pdf-no-explain-images .pdf-page .psol-e img { display: none !imp
 .pq-opt p { margin: 0; }
 .pq-key { font-weight: 400; flex: none; }
 .pq-val { min-width: 0; }
-.pq-val img { max-width: 100%; height: auto; }
+.pq-val img { max-width: 100%; max-height: 90mm; height: auto; }
 .pdf-img-missing {
   display: inline-block;
   max-width: 100%;
@@ -1513,7 +1513,7 @@ body.pdf-render.pdf-no-explain-images .pdf-page .psol-e img { display: none !imp
 .psol-alabel { font-weight: 700; }
 .psol-e { margin: 0; color: #222; }
 .psol-e p { margin: 0 0 .2rem; }
-.psol img { max-width: 100%; height: auto; }
+.psol img { max-width: 100%; max-height: 210mm; height: auto; }
 
 .pdf-prev-back { z-index: 70; padding: .5rem; }
 .pdf-prev {
