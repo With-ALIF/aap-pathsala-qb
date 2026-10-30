@@ -313,6 +313,199 @@
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: [] }
   };
+
+  // ---------------- shared image preparation ----------------
+  // The question bank stores testmoz image URLs as-is. testmoz does not allow
+  // reliable cross-origin canvas loading, so direct PDFs from the bank need
+  // the same resized proxy/cache path that CSV imports already use.
+  var pdfImageCache = Object.create(null);
+  var pdfImagePromises = Object.create(null);
+  function pdfCanonicalUrl(url) {
+    return String(url == null ? '' : url)
+      .replace(/&amp;/gi, '&')
+      .replace(/&#0*38;/gi, '&')
+      .replace(/&#x26;/gi, '&');
+  }
+  function pdfImageSafeHtml(html) {
+    return String(html == null ? '' : html).replace(
+      /(<img\b[^>]*?(?:^|\s)src\s*=\s*["'])(https?:\/\/testmozusercontent\.com\/[^"']+)(["'])/gi,
+      function (m, pre, url, post) {
+        var original = pdfCanonicalUrl(url);
+        var proxy = 'https://images.weserv.nl/?url=' + encodeURIComponent(original) +
+          '&w=1000&output=jpg&q=82';
+        return pre + proxy + post + ' data-orig-src="' +
+          original.replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '"';
+      }
+    );
+  }
+  window.pdfImageSafeHtml = pdfImageSafeHtml;
+
+  function pdfImageUrlsFromHtml(html, seen) {
+    var re = /<img\b[^>]*?(?:^|\s)src\s*=\s*["']([^"']+)["']/gi;
+    var m;
+    while ((m = re.exec(String(html || '')))) {
+      var url = pdfCanonicalUrl(m[1]);
+      if (/^https?:\/\//i.test(url)) seen[url] = 1;
+    }
+  }
+  function pdfFullHtml(full, includeExplanation) {
+    var html = String(full.q || '');
+    if (includeExplanation !== false) html += String(full.e || '');
+    (full.o || []).forEach(function (op) { html += String(op.h || ''); });
+    return html;
+  }
+  function pdfCollectImageUrls(rows, includeExplanation) {
+    var seen = Object.create(null);
+    var map = window.DATMAP || {};
+    (rows || []).forEach(function (rec) {
+      var sh = rec._sh != null ? rec._sh : rec.__shard;
+      var full = (map[sh] || {})[rec.p] || {};
+      pdfImageUrlsFromHtml(pdfImageSafeHtml(pdfFullHtml(full, includeExplanation)), seen);
+    });
+    return Object.keys(seen);
+  }
+  function pdfProxyOriginal(url) {
+    var m = /[?&]url=([^&]+)/.exec(String(url || ''));
+    if (!m) return '';
+    try { return pdfCanonicalUrl(decodeURIComponent(m[1])); } catch (e) { return ''; }
+  }
+  function pdfRememberSize(url, img) {
+    if (!img || !img.naturalWidth || !img.naturalHeight) return;
+    if (!window.IMG_SIZE) window.IMG_SIZE = {};
+    window.IMG_SIZE[url] = [img.naturalWidth, img.naturalHeight];
+  }
+  function pdfLoadImage(url, timeoutMs) {
+    var u = pdfCanonicalUrl(url);
+    if (!u) return Promise.resolve(false);
+    if (window.IMG_SIZE && window.IMG_SIZE[u]) return Promise.resolve(true);
+    if (pdfImagePromises[u]) return pdfImagePromises[u];
+    var p = new Promise(function (resolve) {
+      var im = new Image();
+      var done = false;
+      var timer = 0;
+      var original = pdfProxyOriginal(u);
+      function finish(ok) {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        if (ok) {
+          pdfImageCache[u] = im;
+          pdfRememberSize(u, im);
+          if (original) pdfRememberSize(original, im);
+        } else {
+          delete pdfImagePromises[u];
+        }
+        resolve(!!ok);
+      }
+      timer = setTimeout(function () { finish(false); }, timeoutMs || 20000);
+      im.onload = function () {
+        finish(!!(im.naturalWidth && im.naturalHeight));
+      };
+      im.onerror = function () {
+        if (original && !im.__origTried) {
+          im.__origTried = true;
+          try { im.src = original; } catch (e) { finish(false); }
+          return;
+        }
+        finish(false);
+      };
+      try {
+        im.src = u;
+      } catch (e) {
+        finish(false);
+      }
+      if (im.complete && im.naturalWidth && im.naturalHeight) finish(true);
+    });
+    pdfImagePromises[u] = p;
+    return p;
+  }
+  window.pdfEnsureImages = function (rows, includeExplanation) {
+    var urls = pdfCollectImageUrls(rows, includeExplanation);
+    if (!urls.length) return Promise.resolve();
+    var pending = [];
+    for (var i = 0; i < urls.length; i++) {
+      if (!(window.IMG_SIZE && window.IMG_SIZE[urls[i]]) && !pdfImageCache[urls[i]]) {
+        pending.push(urls[i]);
+      }
+    }
+    if (!pending.length) return Promise.resolve();
+    var done = 0;
+    var reporting = true;
+    var jobs = pending.map(function (url) {
+      return pdfLoadImage(url, 20000).then(function (ok) {
+        done++;
+        if (reporting) {
+          pdfProgress(8, 'ছবি লোড হচ্ছে… (' + window.bnNum(done) + '/' + window.bnNum(pending.length) + ')');
+        }
+        return ok;
+      }, function () { return false; });
+    });
+    var all = Promise.all(jobs).then(function (value) {
+      reporting = false;
+      return value;
+    }, function () {
+      reporting = false;
+    });
+    var timer = new Promise(function (resolve) {
+      setTimeout(function () {
+        reporting = false;
+        resolve();
+      }, 20000);
+    });
+    return Promise.race([all, timer]).then(function () {
+      reporting = false;
+    });
+  };
+  // If a proxied image still fails, try the original once. This also covers
+  // images inserted by the paper builder, not just CSV-prefetched images.
+  window.addEventListener('error', function (e) {
+    var img = e && e.target;
+    if (!img || img.tagName !== 'IMG' || !img.getAttribute) return;
+    var original = img.getAttribute('data-orig-src');
+    if (!original || img.getAttribute('data-orig-tried')) return;
+    img.setAttribute('data-orig-tried', '1');
+    img.src = original;
+  }, true);
+
+  // ---------------- progress overlay for the main app ----------------
+  (function installPdfProgress() {
+    var box = document.getElementById('pdfProgress');
+    if (!box) return;
+    var hideTimer = 0;
+    function el(id) { return document.getElementById(id); }
+    window.onPdfProgress = function (percent, label, mode) {
+      clearTimeout(hideTimer);
+      if (percent == null || percent < 0) {
+        box.hidden = true;
+        document.body.classList.remove('pdf-progressing');
+        return;
+      }
+      percent = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
+      box.hidden = false;
+      document.body.classList.add('pdf-progressing');
+      var head = el('pdfProgressHead');
+      if (head) head.textContent = mode === 'preview' ? 'প্রিভিউ তৈরি হচ্ছে' : 'PDF তৈরি হচ্ছে';
+      var phase = el('pdfProgressPhase');
+      if (phase) phase.textContent = label || 'প্রস্তুত হচ্ছে…';
+      var pct = el('pdfProgressPct');
+      if (pct) pct.textContent = window.bnNum(percent) + '%';
+      var bar = el('pdfProgressBar');
+      if (bar) bar.setAttribute('aria-valuenow', String(percent));
+      var fill = el('pdfProgressFill');
+      if (fill) fill.style.width = percent + '%';
+      var detail = el('pdfProgressDetail');
+      if (detail) detail.textContent = percent >= 100 ? 'তৈরি হয়েছে' : 'অনুগ্রহ করে অপেক্ষা করুন…';
+      var live = el('pdfProgressLive');
+      if (live) live.textContent = percent >= 100 ? 'সম্পন্ন' : '';
+      if (percent >= 100) {
+        hideTimer = setTimeout(function () {
+          box.hidden = true;
+          document.body.classList.remove('pdf-progressing');
+        }, 900);
+      }
+    };
+  })();
+
   var PDF_BLANK_INK = 15;
   // Remote CSV images can fail (offline, CORS, dead host). html2canvas would
   // otherwise sit on imageTimeout for every page. Wait once for the whole
@@ -635,9 +828,12 @@
     var needed = window.pendingFor(rows);
     var imagePromise = Promise.resolve();
     try {
-      if (typeof window.csvEnsureImages === 'function') {
+      var ensureImages = typeof window.csvEnsureImages === 'function'
+        ? window.csvEnsureImages
+        : (typeof window.pdfEnsureImages === 'function' ? window.pdfEnsureImages : null);
+      if (ensureImages) {
         imagePromise = Promise.resolve(
-          window.csvEnsureImages(rows, !(meta && meta.images === false))
+          ensureImages(rows, !(meta && meta.images === false))
         ).catch(function () {});
       }
     } catch (e) {}

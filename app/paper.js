@@ -39,12 +39,17 @@
     var sh = rec._sh != null ? rec._sh : rec.__shard;
     return (window.DATMAP[sh] || {})[rec.p] || {};
   }
+  function safeHtml(html) {
+    return typeof window.pdfImageSafeHtml === 'function'
+      ? window.pdfImageSafeHtml(html)
+      : html;
+  }
 
   function stemNode(rec, i, full, cls) {
     var p = window.el('p', cls || 'pq-q');
     p.appendChild(window.el('span', 'pq-n', window.bnNum(i + 1) + '.'));
     var body = window.el('span', 'pq-body');
-    if (full.q) { body.innerHTML = full.q; window.eagerImgs(body); window.sizeImgs(body); }
+    if (full.q) { body.innerHTML = safeHtml(full.q); window.eagerImgs(body); window.sizeImgs(body); }
     else body.textContent = window.textOf(rec.t || rec.q);
     window.enhanceMath(body);
     p.appendChild(body);
@@ -58,7 +63,7 @@
       var row = window.el('div', 'pq-opt');
       row.appendChild(window.el('span', 'pq-key', letter + ')'));
       var v = window.el('span', 'pq-val');
-      if (o.h) { v.innerHTML = o.h; window.eagerImgs(v); window.sizeImgs(v); }
+      if (o.h) { v.innerHTML = safeHtml(o.h); window.eagerImgs(v); window.sizeImgs(v); }
       else v.textContent = o.t || '';
       window.enhanceMath(v);
       row.appendChild(v);
@@ -100,7 +105,7 @@
       ap.appendChild(window.el('b', null, 'সঠিক উত্তর: '));
       ap.appendChild(document.createTextNode('(' + letter + ') '));
       var av = window.el('span');
-      if (ao.h) { av.innerHTML = ao.h; window.eagerImgs(av); window.sizeImgs(av); }
+      if (ao.h) { av.innerHTML = safeHtml(ao.h); window.eagerImgs(av); window.sizeImgs(av); }
       else av.textContent = ao.t || '';
       window.enhanceMath(av);
       ap.appendChild(av);
@@ -111,7 +116,7 @@
       ep.appendChild(window.el('b', null, 'ব্যাখ্যা: '));
       if (full.e) {
         var ev = window.el('span');
-        ev.innerHTML = full.e;
+        ev.innerHTML = safeHtml(full.e);
         window.eagerImgs(ev);
         window.sizeImgs(ev);
         window.enhanceMath(ev);

@@ -466,6 +466,26 @@
   </div>
 </div>
 
+<div class="pdf-progress" id="pdfProgress" hidden>
+  <div class="pdf-progress-card" role="dialog" aria-modal="true" aria-labelledby="pdfProgressHead">
+    <div class="pdf-progress-top">
+      <span class="pdf-progress-ico"><span class="ic" data-ic="fileText"></span></span>
+      <div class="pdf-progress-txt">
+        <h2 id="pdfProgressHead">PDF তৈরি হচ্ছে</h2>
+        <p id="pdfProgressPhase">প্রস্তুত হচ্ছে…</p>
+      </div>
+      <strong class="pdf-progress-pct" id="pdfProgressPct">০%</strong>
+    </div>
+    <div class="pdf-progress-track" id="pdfProgressBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <span class="pdf-progress-fill" id="pdfProgressFill"></span>
+    </div>
+    <div class="pdf-progress-foot">
+      <span id="pdfProgressDetail">অনুগ্রহ করে অপেক্ষা করুন…</span>
+      <span id="pdfProgressLive" aria-live="polite"></span>
+    </div>
+  </div>
+</div>
+
 <div id="paper" aria-hidden="true"></div>
 
 <script src="vendor/html2pdf.bundle.min.js"></script>
