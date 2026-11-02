@@ -30,9 +30,26 @@
     if (opts.length === 2 && window.normOpts(opts[0]) === 'done' && window.normOpts(opts[1]) === 'skip') return 0;
     return opts.length;
   };
+  window.unitLabel = function (key) {
+    if (key == null) return '';
+    var s = String(key);
+    var unit = /^Unit-([A-Z])$/.exec(s);
+    if (unit) return 'ইউনিট ' + unit[1];
+    return window.UNIT_LABEL[s] || s;
+  };
+  window.setLabel = function (key) {
+    if (key == null) return '';
+    var s = String(key);
+    var set = /^Set-(\d+)$/.exec(s);
+    if (set) return 'সেট ' + window.bnNum(set[1]);
+    return window.SET_LABEL[s] || s;
+  };
   window.labelFor = function (facet, key) {
     if (key === window.NONE) return '(মান নেই)';
+    if (key == null) return '';
     if (facet === 's') return window.SUBJ_LABEL[key] || key;
+    if (facet === 'un2') return window.unitLabel(key);
+    if (facet === 'sh') return window.setLabel(key);
     if (facet === 'c') {
       var raw = String(key);
       var name = window.CHAPTER_NAME && window.CHAPTER_NAME[raw];

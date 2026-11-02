@@ -16,7 +16,14 @@
     if (window.MULTI_FACETS.indexOf(f) !== -1) {
       var sel = window.state[f];
       if (!sel || !sel.length) return true;
-      return sel.indexOf(recVal) !== -1;
+      for (var i = 0; i < sel.length; i++) {
+        if (sel[i] === window.NONE) {
+          if (window.isBlank(recVal)) return true;
+        } else if (recVal === sel[i]) {
+          return true;
+        }
+      }
+      return false;
     }
     var one = window.state[f];
     if (!one) return true;
@@ -64,19 +71,34 @@
     map[k] = (map[k] || 0) + 1;
   };
   window.computeFacetCounts = function () {
+    var facets = window.FACETS;
+    var nf = facets.length;
     var counts = {};
-    for (var i = 0; i < window.FACETS.length; i++) counts[window.FACETS[i]] = {};
+    for (var i = 0; i < nf; i++) counts[facets[i]] = {};
     for (var j = 0; j < window.FLAT.length; j++) {
       var r = window.FLAT[j];
       if (!window.baseMatch(r)) continue;
-      for (var fi = 0; fi < window.FACETS.length; fi++) {
-        var f = window.FACETS[fi];
-        var pass = true;
-        for (var fj = 0; fj < window.FACETS.length; fj++) {
-          if (fi === fj) continue;
-          if (!window.facetPass(r[window.FACETS[fj]], window.FACETS[fj])) { pass = false; break; }
+      // A record counts toward every facet it passes, except when that
+      // record fails two or more facets — then excluding just one still
+      // leaves another failure, so it counts toward none of them.
+      var failed = -1;
+      var failedCount = 0;
+      for (var fi = 0; fi < nf; fi++) {
+        if (!window.facetPass(r[facets[fi]], facets[fi])) {
+          failed = fi;
+          failedCount++;
+          if (failedCount > 1) break;
         }
-        if (pass) window.inc(counts[f], r[f]);
+      }
+      if (failedCount > 1) continue;
+      if (failedCount === 1) {
+        // Facet counts ignore their own filter, so the one failing facet
+        // still gets a count; every other facet must respect that failure.
+        window.inc(counts[facets[failed]], r[facets[failed]]);
+        continue;
+      }
+      for (var ci = 0; ci < nf; ci++) {
+        window.inc(counts[facets[ci]], r[facets[ci]]);
       }
     }
     return counts;

@@ -11,13 +11,15 @@
   window.IDX = window.QB_IDX;
   window.DAT = window.QB_DAT;
   window.LOADED = window.QB_LOADED;
-  window.FACETS = ['db', 'un', 'y', 's', 'c', 'k', 'ty'];
+  window.FACETS = ['db', 'un', 'un2', 'sh', 'y', 's', 'c', 'k', 'ty'];
   window.FACET_ID = { db: 'fDb', y: 'fY', k: 'fK', ty: 'fTy' };
-  window.MULTI_FACETS = ['s', 'c', 'un'];
+  window.MULTI_FACETS = ['un', 'un2', 'sh', 's', 'c'];
   window.MULTI_ID = {
+    un: { field: 'msUn', btn: 'fUnBtn', pop: 'fUnPop', list: 'fUnList', count: 'fUnCount', clear: 'fUnClear', label: 'বিশ্ববিদ্যালয়' },
+    un2: { field: 'msUn2', btn: 'fUn2Btn', pop: 'fUn2Pop', list: 'fUn2List', count: 'fUn2Count', clear: 'fUn2Clear', label: 'ইউনিট' },
+    sh: { field: 'msSh', btn: 'fShBtn', pop: 'fShPop', list: 'fShList', count: 'fShCount', clear: 'fShClear', label: 'সেট' },
     s: { field: 'msS', btn: 'fSBtn', pop: 'fSPop', list: 'fSList', count: 'fSCount', clear: 'fSClear', label: 'বিষয়' },
-    c: { field: 'msC', btn: 'fCBtn', pop: 'fCPop', list: 'fCList', count: 'fCCount', clear: 'fCClear', label: 'অধ্যায়' },
-    un: { field: 'msUn', btn: 'fUnBtn', pop: 'fUnPop', list: 'fUnList', count: 'fUnCount', clear: 'fUnClear', label: 'বিশ্ববিদ্যালয়' }
+    c: { field: 'msC', btn: 'fCBtn', pop: 'fCPop', list: 'fCList', count: 'fCCount', clear: 'fCClear', label: 'অধ্যায়' }
   };
   window.CTRL_ID = { n: 'fN' };
   window.NONE = '__none__';
@@ -35,13 +37,22 @@
     'EXTRA': 'অতিরিক্ত প্রশ্ন',
     'সাধারন গণিত': 'সাধারণ গণিত', 'সাধারন বিজ্ঞান': 'সাধারণ বিজ্ঞান'
   };
+  window.UNIT_LABEL = {
+    'Science': 'বিজ্ঞান', 'Arts': 'মানবিক', 'Preli': 'প্রিলি', 'Assistant': 'সহকারী',
+    'P.Assistant': 'সহকারী (P)', 'Head': 'হেড', 'Registered': 'রেজিস্টার্ড',
+    'Diploma': 'ডিপ্লোমা', 'BSC': 'বিএসসি', 'Teacher': 'শিক্ষক', 'College': 'কলেজ',
+    'SUMMER': 'সামার', 'FALL': 'ফল', 'SPRING': 'স্প্রিং'
+  };
+  window.SET_LABEL = {
+    'Written': 'লিখিত', 'Uddipok': 'উদ্দীপক', 'Bohupodi': 'বহুপদী'
+  };
   window.STATIC_LIST = { ty: [{ value: 'mcq' }, { value: 'written' }] };
   window.BN_DIGITS = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
   window.FLAT = [];
   window.DATMAP = {};
   window.pendIdx = {};
   window.pendDat = {};
-  window.state = { db: '', un: [], y: '', s: [], c: [], k: '', ty: '', n: '', p: '', sort: 'default', e: false, img: false, answers: true };
+  window.state = { db: '', un: [], un2: [], sh: [], y: '', s: [], c: [], k: '', ty: '', n: '', p: '', sort: 'default', e: false, img: false, answers: true };
   window.results = [];
   window.shown = 0;
 window.tab = 'list';

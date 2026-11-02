@@ -27,7 +27,7 @@
     head.appendChild(window.el('span', 'qnum', n));
     var meta = window.el('div', 'qmeta');
     if (idx.ty === 'written') meta.appendChild(window.el('span', 'tag tag-w', 'Written'));
-    var metaItems = [idx.y && ('সাল ' + idx.y), idx.db, idx.un, idx.s, idx.c, idx.k];
+    var metaItems = [idx.y && ('সাল ' + idx.y), idx.db, idx.un, idx.un2 && window.unitLabel(idx.un2), idx.sh && window.setLabel(idx.sh), idx.s, idx.c, idx.k];
     for (var mi = 0; mi < metaItems.length; mi++) {
       var t = metaItems[mi];
       if (t) meta.appendChild(window.el('span', 'tag', t));

@@ -15,6 +15,8 @@ No build step. No bundler. No framework. No server. No database. Open the page a
 | **Universities / institutes** | 101 |
 | **Years covered** | 38 |
 | **Subjects (papers)** | 34 |
+| **Units / streams** | 33 |
+| **Sets / labels** | 85 |
 | **Chapters** | 386 |
 | **Topics** | 812 |
 | **Questions with explanations** | 175,522 |
@@ -96,13 +98,15 @@ Publish the directory as-is to any static host — Netlify, Vercel, Cloudflare P
 
 ### Filtering
 
-Seven facets, plus four non-facet controls:
+Nine facets, plus four non-facet controls:
 
 | Control | Behaviour |
 |---|---|
 | **Search** (`q`) | Full text across question text, **all option texts**, and all facet values. Multiple terms combine with AND. 220 ms debounce. |
-| **Database** (`db`) | Source database. Cascades: changing it clears university, year, subject, chapter, topic. |
-| **University** (`un`) | 101 institutions. Clears subject, chapter, topic. |
+| **Database** (`db`) | Source database. Cascades: changing it clears university, unit, set, year, subject, chapter, topic. |
+| **University** (`un`) | 101 institutions. Clears unit, set, subject, chapter, topic. |
+| **Unit / stream** (`un2`) | Multi-select. Values are scoped by the active university via live counts — e.g. `Unit-A`…`Unit-K` for JU/RU/CU, `Science` for MCC, `Preli` for BCS. Clears when the university changes. |
+| **Set** (`sh`) | Multi-select. Exam set or short label — `Set-1`…`Set-8`, `DailyM`, `WeeklyM`, `FMTM`, `খ`/`গ`/`ঘ`, etc. Scoped by the active university and unit. |
 | **Year** (`y`) | 38 years. |
 | **Subject** (`s`) | 34 papers — **multi-select**, values union (OR). |
 | **Chapter** (`c`) | 386 chapters. Clears topic. |
@@ -152,6 +156,8 @@ Plain-text records. Everything filtering and search needs, nothing more.
   "ot": "Done Skip",    // all option texts joined, so options are searchable
   "db": "Ac.QB",        // source database
   "un": "MCC",          // university / institute / board
+  "un2": "Science",     // unit / stream (raw `un2`)
+  "sh": "খ",            // set / short label (raw `sh`)
   "y": "2024",          // year
   "s": "P-1",           // subject / paper code
   "c": "P-1.2",         // chapter
@@ -195,7 +201,7 @@ Sanitized HTML. Loaded only for shards actually being viewed.
 
 The upstream export: 210,082 newline-delimited JSON objects, 14 keys (`p q t o a e et db un y un2 sh s c k`). This file is **not read by any runtime code** — it is the input the shards were built from, kept for provenance and rebuilds. Safe to exclude from any deployment.
 
-`un2` (English-medium stream, e.g. `"Science"`) and `sh` (Bengali letter, e.g. `"গ"`) exist in the raw dump but are dropped by the build.
+`un2` (unit / stream, e.g. `"Unit-A"`, `"Science"`, `"Preli"`) and `sh` (set / short label, e.g. `"Set-1"`, `"DailyM"`, `"গ"`) are copied into Tier 1 as the **Unit** and **Set** facets by `tools/patch-unit-set-facets.js`. Numeric source placeholders (`26`, `40`) are treated as unspecified, `Unit - F` is normalized to `Unit-F`, and the `vapa` typo is merged into `VAP`.
 
 ---
 
@@ -226,13 +232,13 @@ Errors are handled, not swallowed: a failed shard rejects, the progress bar show
 All state lives in the URL fragment, written via `history.replaceState` and re-read on `hashchange` (guarded by `lastSyncedHash` so the app ignores its own writes — `app.js:942-948`).
 
 ```
-#q=জীবন&db=Ac.QB&y=2024&s=P-1,P-2&ty=mcq&n=4&e=1&sort=y-desc
+#q=জীবন&db=Ac.QB&un=JU&un2=Unit-A&sh=Set-1&y=2024&s=P-1,P-2&ty=mcq&n=4&e=1&sort=y-desc
 ```
 
 | Key | Meaning |
 |---|---|
 | `q` | search query |
-| `db` `un` `y` `s` `c` `k` `ty` | facet selections (`s` is comma-joined for multi-select) |
+| `db` `un` `un2` `sh` `y` `s` `c` `k` `ty` | facet selections (`un`, `un2`, `sh`, `s`, `c` are comma-joined for multi-select) |
 | `n` | option count |
 | `e=1` | has explanation |
 | `img=1` | has image |
@@ -446,7 +452,7 @@ Four `localStorage` keys, all optional and all `try`/`catch`-wrapped:
 The shard files are **generated artifacts**. `database-dump-raw-full.jsonl` is the source of truth; the build script that produced `idx/` and `dat/` is not present in this directory. If you need to rebuild:
 
 1. Read `database-dump-raw-full.jsonl` — one JSON object per line, keys `p q t o a e et db un y un2 sh s c k`.
-2. Emit **Tier 1** per record: `{p, t, ot, db, un, y, s, c, k, a, n}`. `ot` is the option texts joined with a space. Drop `e`/`hi` — they're derived at runtime. Drop `un2` and `sh`.
+2. Emit **Tier 1** per record: `{p, t, ot, db, un, un2, sh, y, s, c, k, a, n}`. `ot` is the option texts joined with a space. Drop `e`/`hi` — they're derived at runtime. If you start from the existing index instead, run `node tools/patch-unit-set-facets.js` to copy `un2`/`sh` from `raw/` and rebuild the two manifest facets.
 3. Emit **Tier 2** per record: `{p, q, o:[{n, h, t, c}], a, e, et}`.
 4. Chunk both tiers into groups of 5,000 records, assign to shard ids `000`…`042`, and write each as `window.QB_IDX[i] = [...]` / `window.QB_DAT[i] = [...]`.
 5. Regenerate `manifest.js` with the new `total`, `shards`, and per-facet `[{value, count}]` tables. **Every facet's counts must sum to exactly `total`** — the app relies on this.

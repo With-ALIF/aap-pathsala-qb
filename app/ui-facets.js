@@ -84,9 +84,11 @@
     listEl.appendChild(frag);
     var btn = window.$(cfg.btn);
     var n = selected.length;
-    if (n === 0) btn.textContent = 'সব';
-    else if (n === 1) btn.textContent = window.labelFor(facet, selected[0]);
-    else btn.textContent = n + 'টি ' + cfg.label;
+    if (btn) {
+      if (n === 0) btn.textContent = 'সব';
+      else if (n === 1) btn.textContent = window.labelFor(facet, selected[0]);
+      else btn.textContent = n + 'টি ' + cfg.label;
+    }
     var cnt = window.$(cfg.count);
     if (cnt) cnt.textContent = n ? n + 'টি নির্বাচিত' : '';
   };
@@ -96,13 +98,13 @@
     if (on && idx === -1) arr.push(key);
     if (!on && idx !== -1) arr.splice(idx, 1);
     window.state[facet] = arr;
-    if (facet === 'un') { window.state.s = []; window.state.c = []; window.state.k = ''; }
+    if (facet === 'un') { window.state.un2 = []; window.state.sh = []; window.state.s = []; window.state.c = []; window.state.k = ''; }
     if (facet === 's') window.state.k = '';
     window.recompute();
   };
   window.clearMulti = function (facet) {
     window.state[facet] = [];
-    if (facet === 'un') { window.state.s = []; window.state.c = []; window.state.k = ''; }
+    if (facet === 'un') { window.state.un2 = []; window.state.sh = []; window.state.s = []; window.state.c = []; window.state.k = ''; }
     if (facet === 's') { window.state.c = []; window.state.k = ''; }
     if (facet === 'c') window.state.k = '';
     window.recompute();
