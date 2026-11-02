@@ -25,10 +25,29 @@
   };
   window.selRecs = function () {
     var out = [];
-    for (var i = 0; i < window.selOrder.length; i++) {
-      var r = window.selMap[window.selOrder[i]];
-      if (r) out.push(r);
+    var map = window.selMap;
+    var seen = Object.create(null);
+
+    // Follow the exact frontend serial order of window.results
+    if (window.results && window.results.length) {
+      for (var i = 0; i < window.results.length; i++) {
+        var r = window.results[i];
+        if (map[r.p] && !seen[r.p]) {
+          out.push(map[r.p]);
+          seen[r.p] = true;
+        }
+      }
     }
+
+    // Include any selected items that are not in the current filtered results
+    for (var j = 0; j < window.selOrder.length; j++) {
+      var pk = window.selOrder[j];
+      if (map[pk] && !seen[pk]) {
+        out.push(map[pk]);
+        seen[pk] = true;
+      }
+    }
+
     return out;
   };
   window.updateSelBar = function () {

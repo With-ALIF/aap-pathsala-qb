@@ -1650,3 +1650,95 @@ body.pdf-render.pdf-no-explain-images .pdf-page .psol-e img { display: none !imp
   }
   body.printing .paper-doc { padding: 0; }
 }
+
+
+/* University Search in Filter Menu */
+.ms-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.ms-search-box input.ms-search-in {
+  width: 100%;
+  box-sizing: border-box;
+  padding-right: 3.4rem !important;
+  cursor: text;
+}
+.ms-search-box input.ms-search-in::after {
+  display: none !important;
+}
+.ms-search-box input.ms-search-in:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+.ms-in-clear {
+  position: absolute;
+  right: 1.65rem;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: .85rem;
+  padding: .2rem .3rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+.ms-in-clear:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.ms-in-toggle {
+  position: absolute;
+  right: .35rem;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: .95rem;
+  padding: .2rem .35rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+.ms-in-toggle:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.ms-search-pop {
+  padding: .45rem .5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.ms-search-pop-in {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: .85rem;
+  padding: .35rem .55rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+}
+.ms-search-pop-in:focus {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+.ms-empty-search {
+  padding: 1rem .6rem;
+  text-align: center;
+  font-size: .85rem;
+  color: var(--muted);
+}

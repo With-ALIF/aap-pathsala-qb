@@ -4,11 +4,14 @@
   var _ent = null;
   window.textOf = function (v) {
     if (v == null) return '';
-    var s = String(v).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    var s = String(v).replace(/<img[^>]*>/gi, '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
     if (!/[<&]/.test(String(v))) return s;
-    if (!_ent) _ent = document.createElement('textarea');
-    _ent.innerHTML = String(v);
-    return (_ent.value || '').replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+    if (typeof document !== 'undefined') {
+      if (!_ent) _ent = document.createElement('div');
+      _ent.innerHTML = s;
+      return (_ent.textContent || _ent.innerText || s).replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+    return s.replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/&quot;/gi, '"').replace(/&#39;/gi, "'");
   };
 
   window.CSV_HEADER = 'questions,option1,option2,option3,option4,option5,answer,explanation,type,section';

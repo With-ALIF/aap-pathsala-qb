@@ -5,7 +5,8 @@
     return fmt === 'mnr' ? window.buildMNR(rows) : window.buildCSV(rows);
   };
   window.csvExportRange = function (from, to, fmt) {
-    var sub = window.results.slice(from - 1, to);
+    var source = (window.tab === 'sel') ? window.selRecs() : window.results;
+    var sub = source.slice(from - 1, to);
     var needed = window.pendingFor(sub);
     window.csvErr('কন্টেন্ট শার্ড লোড হচ্ছে…');
     if (window.$('csvGo')) window.$('csvGo').disabled = true;
@@ -68,7 +69,9 @@
   };
   window.openCSV = function () {
     window.csvErr('');
-    var n = window.results.length;
+    var isSelTab = window.tab === 'sel';
+    var source = isSelTab ? window.selRecs() : window.results;
+    var n = source.length;
     if (window.$('csvAvail')) {
       window.$('csvAvail').textContent = 'মোট ' + window.num(n) + 'টি প্রশ্ন বর্তমান ফিল্টারে পাওয়া গেছে।';
     }

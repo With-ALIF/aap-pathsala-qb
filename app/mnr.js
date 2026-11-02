@@ -4,16 +4,56 @@
   window.MNR_HEADER = 'question,question_image,option_1,option_1_image,option_2,option_2_image,option_3,option_3_image,option_4,option_4_image,option_5,option_5_image,correct_options,explanation,explanation_image,type_id,paper_id,chapter_id,topic_id';
 
   function stripHTML(s) {
-    return window.stripHTML(s);
+    if (s == null) return '';
+    var str = String(s);
+    str = str.replace(/<img[^>]*>/gi, '');
+    str = str.replace(/<span class="katex-mathml">[\s\S]*?<\/span>/gi, '');
+    str = str.replace(/<sup[^>]*>([\s\S]*?)<\/sup>/gi, function (m, inner) {
+      var t = inner.replace(/<[^>]*>/g, '').trim();
+      return t ? '^{' + t + '}' : '';
+    });
+    str = str.replace(/<sub[^>]*>([\s\S]*?)<\/sub>/gi, function (m, inner) {
+      var t = inner.replace(/<[^>]*>/g, '').trim();
+      return t ? '_{' + t + '}' : '';
+    });
+    str = str.replace(/<[^>]*>/g, ' ');
+    str = str.replace(/&nbsp;/gi, ' ')
+             .replace(/&amp;/gi, '&')
+             .replace(/&lt;/gi, '<')
+             .replace(/&gt;/gi, '>')
+             .replace(/&quot;/gi, '"')
+             .replace(/&#39;/gi, "'")
+             .replace(/&#(\d+);/g, function (m, d) { return String.fromCharCode(d); });
+    return str.replace(/\s+/g, ' ').trim();
   }
 
   function imgURLs(html) {
-    var out = [], re = /<img[^>]*\ssrc\s*=\s*["']([^"']+)["'][^>]*>/gi, m;
-    while ((m = re.exec(String(html || '')))) if (m[1]) out.push(m[1]);
+    if (!html) return [];
+    var str = String(html).trim();
+    if (/^https?:\/\/[^\s"'<>]+\.(?:png|jpe?g|gif|webp|svg)(?:\?[^\s"'<>]*)?$/i.test(str)) {
+      return [str];
+    }
+    var out = [], re = /<img[^>]+src=["']?([^"'\s>]+)/gi, m;
+    while ((m = re.exec(str))) {
+      if (m[1]) out.push(m[1].replace(/["']$/, ''));
+    }
     return out;
   }
   function imgCell(html) {
     var u = imgURLs(html);
+    return !u.length ? '' : (u.length === 1 ? u[0] : JSON.stringify(u));
+  }
+
+  function explainText(full) {
+    var t = stripHTML(full.et);
+    if (!t) t = stripHTML(full.e);
+    if (/^https?:\/\/[^\s]+$/i.test(t)) return '';
+    return t;
+  }
+
+  function explainImg(full) {
+    var u = imgURLs(full.e);
+    if (!u.length && full.et) u = imgURLs(full.et);
     return !u.length ? '' : (u.length === 1 ? u[0] : JSON.stringify(u));
   }
 
@@ -56,18 +96,19 @@
 
   window.mnrRow = function (rec) {
     var full = (window.DATMAP[rec.__shard] || {})[rec.p] || {};
-    var q = window.textOf(rec.t) || stripHTML(full.q);
+    var q = (full && full.q ? stripHTML(full.q) : '') || (rec.t ? window.textOf(rec.t) : '') || '';
     var opts = full.o || [];
     var cells = [csvQ(q), csvQ(imgCell(full.q))];
     for (var i = 0; i < 5; i++) {
       var o = opts[i];
-      cells.push(csvQ(o ? (window.textOf(o.t) || stripHTML(o.h)) : ''));
+      var optText = o ? ((o.h ? stripHTML(o.h) : '') || (o.t ? window.textOf(o.t) : '') || '') : '';
+      cells.push(csvQ(optText));
       cells.push(csvQ(o ? imgCell(o.h) : ''));
     }
     var paper = window.paperIdOf(rec.s);
     cells.push(csvCorrect(correctList(full, rec)));
-    cells.push(csvQ(full.et || stripHTML(full.e)));
-    cells.push(csvQ(imgCell(full.e)));
+    cells.push(csvQ(explainText(full)));
+    cells.push(csvQ(explainImg(full)));
     cells.push(csvQ(''));
     cells.push(csvQ(paper));
     cells.push(csvQ(window.chapterIdOf(rec.c, paper)));

@@ -41,9 +41,16 @@
   </div>
 
   <div class="field ms-field" id="msUn">
-    <label for="fUnBtn">বিশ্ববিদ্যালয় / ইনস্টিটিউট</label>
-    <button type="button" class="ms-btn" id="fUnBtn" aria-haspopup="true" aria-expanded="false">সব</button>
+    <label for="fUnSearch">বিশ্ববিদ্যালয় / ইনস্টিটিউট</label>
+    <div class="ms-search-box">
+      <input type="text" class="ms-btn ms-search-in" id="fUnSearch" placeholder="বিশ্ববিদ্যালয় সার্চ করুন..." autocomplete="off" spellcheck="false" aria-haspopup="true" aria-expanded="false" aria-controls="fUnPop">
+      <button type="button" class="ms-in-clear" id="fUnClearInput" title="সার্চ মুছুন" aria-label="সার্চ মুছুন" hidden>✕</button>
+      <button type="button" class="ms-in-toggle" id="fUnBtn" aria-haspopup="true" aria-expanded="false" title="তালিকা খুলুন" aria-label="বিশ্ববিদ্যালয় তালিকা খুলুন">▾</button>
+    </div>
     <div class="ms-pop" id="fUnPop" hidden>
+      <div class="ms-search-pop">
+        <input type="search" class="ms-search-pop-in" id="fUnPopSearch" placeholder="বিশ্ববিদ্যালয় খুঁজুন (যেমন: DU, BUET)..." autocomplete="off" spellcheck="false">
+      </div>
       <div class="ms-head">
         <span id="fUnCount"></span>
         <button type="button" class="ms-clear" id="fUnClear">সব মুছুন</button>

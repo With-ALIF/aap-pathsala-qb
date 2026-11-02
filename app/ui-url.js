@@ -47,6 +47,18 @@
     if (window.$('fSort')) window.$('fSort').value = window.state.sort;
     if (window.$('fE')) window.$('fE').checked = window.state.e;
     if (window.$('fImg')) window.$('fImg').checked = window.state.img;
+    
+    if (window.$('fUnSearch')) {
+      var selUn = window.state.un || [];
+      var sText = selUn.length === 0 ? '' : (selUn.length === 1 ? window.labelFor('un', selUn[0]) : (selUn.length + 'টি বিশ্ববিদ্যালয়'));
+      window.$('fUnSearch').placeholder = selUn.length === 0 ? 'বিশ্ববিদ্যালয় সার্চ করুন...' : sText;
+      if (document.activeElement !== window.$('fUnSearch')) {
+        window.$('fUnSearch').value = sText;
+      }
+      if (window.$('fUnClearInput')) {
+        window.$('fUnClearInput').hidden = !(window.$('fUnSearch').value || sText);
+      }
+    }
     if (window.syncDropdowns) window.syncDropdowns();
   };
   window.reset = function () {
@@ -54,6 +66,14 @@
       if (k === 'answers' || k[0] === '_') return;
       window.state[k] = (k === 'e' || k === 'img') ? false : (k === 'sort' ? 'default' : (window.MULTI_FACETS.indexOf(k) !== -1 ? [] : ''));
     });
+    
+    if (window.$('fUnSearch')) {
+      window.$('fUnSearch').value = '';
+      window.$('fUnSearch').placeholder = 'বিশ্ববিদ্যালয় সার্চ করুন...';
+    }
+    if (window.$('fUnPopSearch')) window.$('fUnPopSearch').value = '';
+    if (window.$('fUnClearInput')) window.$('fUnClearInput').hidden = true;
+    if (window.filterUnList) window.filterUnList('');
     window.writeControls();
     window.refreshSelects(null);
     window.recompute();
