@@ -285,20 +285,36 @@
     if (scroll) scroll.innerHTML = '';
     window.endPdfImport();
   };
+  function pdfIsIPad() {
+    var ua = navigator.userAgent || '';
+    // iPadOS 13+ often reports itself as Macintosh, so touch support is the
+    // reliable extra signal.
+    return /iPad/i.test(ua) || (/Macintosh/i.test(ua) && Number(navigator.maxTouchPoints) > 1);
+  }
+  function pdfLowMemoryDevice() {
+    var ua = navigator.userAgent || '';
+    return pdfIsIPad() || /Android|iPhone|iPod|Mobile/i.test(ua);
+  }
   function pdfRasterScale(pageCount) {
-    var cores = navigator.hardwareConcurrency || 4;
     var pages = Number(pageCount) || 1;
-    // A 200-question CSV can become 20+ A4 pages. Rendering every page at
-    // 1.5x is needlessly slow (and memory-hungry), so ease off only when the
-    // document is genuinely large. Short papers keep full quality.
-    if (pages >= 30) return 1;
-    if (pages >= 14) return 1.1;
-    if (pages >= 8) return cores >= 8 ? 1.25 : 1.15;
-    return cores >= 8 ? 1.5 : 1.25;
+    var lowMem = pdfLowMemoryDevice();
+    // Text is rasterised into the PDF, so 1x (96 DPI) looks blurry in print.
+    // Keep at least 1.5x for normal papers and 1.25x only for very large
+    // batches; low-memory tablets get a slightly smaller but still sharp page.
+    if (lowMem) {
+      if (pages >= 45) return 1.25;
+      if (pages >= 24) return 1.35;
+      if (pages >= 14) return 1.5;
+      return 1.75;
+    }
+    if (pages >= 60) return 1.5;
+    if (pages >= 30) return 1.6;
+    if (pages >= 18) return 1.8;
+    return 2;
   }
   var PDF_OPT = {
     margin: [0, 0, 0, 0],
-    image: { type: 'jpeg', quality: 0.82 },
+    image: { type: 'jpeg', quality: 0.95 },
     enableLinks: false,
     html2canvas: {
       scale: pdfRasterScale(),
@@ -332,7 +348,7 @@
       function (m, pre, url, post) {
         var original = pdfCanonicalUrl(url);
         var proxy = 'https://images.weserv.nl/?url=' + encodeURIComponent(original) +
-          '&w=1000&output=jpg&q=82';
+          '&w=1600&output=jpg&q=92';
         return pre + proxy + post + ' data-orig-src="' +
           original.replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '"';
       }
@@ -534,6 +550,34 @@
       }
     });
   }
+  // html2canvas scans images in the document. On the main app, the cards
+  // behind #paper can have dozens of slow testmoz requests still pending,
+  // which made the first page wait forever. Temporarily detach their sources
+  // while the paper is rendered, then put everything back.
+  function pdfSilenceOutsideImages() {
+    var paper = document.getElementById('paper');
+    if (!paper) return function () {};
+    var imgs = Array.prototype.slice.call(document.querySelectorAll('img'));
+    var saved = [];
+    imgs.forEach(function (img) {
+      if (paper.contains(img)) return;
+      var src = img.getAttribute('src');
+      var srcset = img.getAttribute('srcset');
+      if (!src && !srcset) return;
+      saved.push({ img: img, src: src, srcset: srcset });
+      if (src) img.removeAttribute('src');
+      if (srcset) img.removeAttribute('srcset');
+    });
+    var restored = false;
+    return function () {
+      if (restored) return;
+      restored = true;
+      saved.forEach(function (item) {
+        if (item.src && !item.img.getAttribute('src')) item.img.setAttribute('src', item.src);
+        if (item.srcset && !item.img.getAttribute('srcset')) item.img.setAttribute('srcset', item.srcset);
+      });
+    };
+  }
   function pdfFontsSettled() {
     if (!document.fonts || !document.fonts.ready) return Promise.resolve();
     var jobs = [document.fonts.ready && document.fonts.ready.catch
@@ -627,7 +671,7 @@
     function once() {
       attempt++;
       return pdfPageCanvas(pageEl).then(function (canvas) {
-        if (!canvas) throw new Error('পাতা রেন্ডার হয়নি');
+        if (!canvas || !canvas.width || !canvas.height) throw new Error('পাতা রেন্ডার হয়নি');
         var ink = pdfCanvasInk(canvas);
         if (ink === -1 || ink >= PDF_BLANK_INK) return canvas;
         console.error('[pdf] blank page ' + (idx + 1) + '/' + total + ' (attempt ' + attempt + ', ink=' + ink + ')');
@@ -664,6 +708,7 @@
     if (!list.length) throw new Error('PDF তৈরি হয়নি');
     var total = list.length;
     PDF_OPT.html2canvas.scale = pdfRasterScale(total);
+    var restoreOutsideImgs = pdfSilenceOutsideImages();
     window.setSelBusy(true, 'পেজ ' + window.num(1) + '/' + window.num(total) + ' রেন্ডার…');
     pdfProgress(82, 'পেজ ' + window.bnNum(1) + '/' + window.bnNum(total) + ' রেন্ডার হচ্ছে…');
     return pdfPageChecked(list[0], 0, total).then(function (canvas0) {
@@ -675,13 +720,14 @@
       var rest = list.slice(1);
       var jpegs = new Array(rest.length);
       var cores = navigator.hardwareConcurrency || 4;
-      var mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
       var lanes = cores >= 8 ? (rest.length >= 8 ? 3 : 2) : 1;
       // Very large papers (especially 4-set CSV papers) can exhaust canvas
       // memory when several A4 pages are rasterised at once. Keep a little
-      // parallelism for speed, but back off on mobile and long documents.
+      // parallelism for speed, but back off on low-memory tablets and long
+      // documents.
+      var lowMem = pdfLowMemoryDevice();
       if (total >= 30) lanes = Math.min(lanes, 2);
-      if (mobile) lanes = total >= 30 ? 1 : Math.min(lanes, 2);
+      if (lowMem) lanes = 1;
       var cursor = 0;
       var done = 1;
       function worker() {
@@ -689,7 +735,7 @@
         var i = cursor++;
         return pdfPageChecked(rest[i], i + 1, total).then(function (canvas) {
           var fitted = pdfFitCanvas(canvas);
-          jpegs[i] = fitted.toDataURL('image/jpeg', 0.82);
+          jpegs[i] = fitted.toDataURL('image/jpeg', 0.95);
           done++;
           window.setSelBusy(true, 'পেজ ' + window.num(done) + '/' + window.num(total) + ' রেন্ডার…');
           pdfProgress(82 + (done / total) * 16, 'পেজ ' + window.bnNum(done) + '/' + window.bnNum(total) + ' রেন্ডার হয়েছে…');
@@ -707,13 +753,17 @@
         return master.output('blob');
       });
     }).then(function (blob) {
+      restoreOutsideImgs();
       pdfProgress(100, 'PDF তৈরি হয়েছে');
       return blob;
+    }, function (err) {
+      restoreOutsideImgs();
+      throw err;
     });
   }
   function pdfNeedsManualTap() {
     var ua = navigator.userAgent || '';
-    if (/iPhone|iPad|iPod/i.test(ua)) return true;
+    if (pdfIsIPad() || /iPhone|iPod/i.test(ua)) return true;
     if (/FBAN|FBAV|FB_IAB|Instagram|Line\/|WhatsApp|MicroMessenger|Twitter/i.test(ua)) return true;
     return /Android/i.test(ua) && /\bwv\b/i.test(ua);
   }

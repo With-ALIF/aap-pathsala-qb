@@ -224,7 +224,7 @@
       function (m, pre, url, post) {
         var original = canonicalUrl(url);
         var proxy = 'https://images.weserv.nl/?url=' + encodeURIComponent(original) +
-          '&w=1000&output=jpg&q=82';
+          '&w=1600&output=jpg&q=92';
         return pre + proxy + post + ' data-orig-src="' +
           original.replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '"';
       }
