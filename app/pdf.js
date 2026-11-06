@@ -68,7 +68,13 @@
       if (tEl) tEl.value = mins > 0 ? window.durationLabel(mins) : '';
     }
     var ans = window.$('pdfAns');
-    if (ans) ans.value = o.answers === false ? 'no' : 'yes';
+    if (ans) {
+      var mode = o.answerMode;
+      if (mode !== 'inline' && mode !== 'end' && mode !== 'no') {
+        mode = o.answers === false ? 'no' : 'inline';
+      }
+      ans.value = mode;
+    }
     var imgEl = window.$('pdfImages');
     if (imgEl) imgEl.checked = o.images !== false;
     var setsEl = window.$('pdfSets');
@@ -105,6 +111,7 @@
         wmTransparency: opEl && Number(opEl.value) > 0 ? Number(opEl.value) : 90,
         footerL: v('pdfFootL'),
         footerR: v('pdfFootR'),
+        answerMode: ansEl && (ansEl.value === 'end' || ansEl.value === 'no') ? ansEl.value : 'inline',
         answers: !(ansEl && ansEl.value === 'no'),
         images: imported ? (window.loadPdfOpts().images !== false) : !!(imgEl && imgEl.checked)
       }));
@@ -139,6 +146,7 @@
     var ansEl = window.$('pdfAns');
     var setsEl = window.$('pdfSets');
     var imgEl = window.$('pdfImages');
+    var answerMode = ansEl && (ansEl.value === 'end' || ansEl.value === 'no') ? ansEl.value : 'inline';
     return {
       title: v('pdfTitleIn') || (window.pdfImportRows && window.pdfImportRows.length
         ? 'পরীক্ষাপত্র'
@@ -156,7 +164,8 @@
       wmOpacity: wmOp,
       footerL: v('pdfFootL'),
       footerR: v('pdfFootR'),
-      answers: !(ansEl && ansEl.value === 'no'),
+      answerMode: answerMode,
+      answers: answerMode !== 'no',
       images: !(imgEl && imgEl.checked === false)
     };
   };

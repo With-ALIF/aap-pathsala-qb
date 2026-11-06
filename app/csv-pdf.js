@@ -147,6 +147,7 @@
         wmTransparency: opEl && Number(opEl.value) > 0 ? Number(opEl.value) : 90,
         footerL: v('pdfFootL'),
         footerR: v('pdfFootR'),
+        answerMode: ansEl && (ansEl.value === 'end' || ansEl.value === 'no') ? ansEl.value : 'inline',
         answers: !(ansEl && ansEl.value === 'no'),
         images: !!(imgEl && imgEl.checked)
       }));
