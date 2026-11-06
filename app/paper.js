@@ -47,7 +47,7 @@
 
   function stemNode(rec, i, full, cls) {
     var p = window.el('p', cls || 'pq-q');
-    p.appendChild(window.el('span', 'pq-n', window.bnNum(i + 1) + '।'));
+    p.appendChild(window.el('span', 'pq-n', window.bnNum(i + 1) + '.'));
     var body = window.el('span', 'pq-body');
     if (full.q) { body.innerHTML = safeHtml(full.q); window.eagerImgs(body); window.sizeImgs(body); }
     else body.textContent = window.textOf(rec.t || rec.q);
@@ -72,65 +72,21 @@
     return boxO;
   }
 
+  function questionNode(rec, i) {
+    var full = fullOf(rec);
+    var q = window.el('section', 'pq');
+    q.appendChild(stemNode(rec, i, full));
+    var opts = full.o || [];
+    if (rec.ty !== 'written' && window.optsReal(opts)) q.appendChild(optionBox(opts));
+    return q;
+  }
+
   function correctOption(rec, full) {
     var opts = full.o || [];
     var idx = -1;
     opts.forEach(function (o, oi) { if (o && o.c && idx < 0) idx = oi; });
     if (idx < 0 && rec.a) idx = rec.a - 1;
     return { opts: opts, idx: idx };
-  }
-
-  function inlineAnswerNode(rec, i) {
-    var full = fullOf(rec);
-    var co = correctOption(rec, full);
-    var hasExpl = !!(full.e || full.et);
-    if ((co.idx < 0 || !co.opts[co.idx]) && !hasExpl) return null;
-    var box = window.el('div', 'pq-ansbox');
-    if (co.idx >= 0 && co.opts[co.idx]) {
-      var ao = co.opts[co.idx];
-      var letter = BN_LETTERS[co.idx] || String.fromCharCode(65 + co.idx);
-      var line = window.el('div', 'pq-ansline');
-      line.appendChild(window.el('b', null, 'সঠিক উত্তর: '));
-      line.appendChild(document.createTextNode('(' + letter + ') '));
-      var av = window.el('span');
-      if (ao.h) {
-        av.innerHTML = safeHtml(ao.h);
-        window.eagerImgs(av);
-        window.sizeImgs(av);
-      } else {
-        av.textContent = ao.t || '';
-      }
-      window.enhanceMath(av);
-      line.appendChild(av);
-      box.appendChild(line);
-    }
-    if (hasExpl) {
-      box.appendChild(window.el('div', 'pq-explabel', 'ব্যাখ্যা'));
-      var ep = window.el('div', 'pq-exp');
-      if (full.e) {
-        ep.innerHTML = safeHtml(full.e);
-        window.eagerImgs(ep);
-        window.sizeImgs(ep);
-        window.enhanceMath(ep);
-      } else {
-        ep.textContent = full.et;
-      }
-      box.appendChild(ep);
-    }
-    return box;
-  }
-
-  function questionNode(rec, i, withAnswer) {
-    var full = fullOf(rec);
-    var q = window.el('section', 'pq');
-    q.appendChild(stemNode(rec, i, full));
-    var opts = full.o || [];
-    if (rec.ty !== 'written' && window.optsReal(opts)) q.appendChild(optionBox(opts));
-    if (withAnswer) {
-      var ans = inlineAnswerNode(rec, i);
-      if (ans) q.appendChild(ans);
-    }
-    return q;
   }
 
   function solutionNode(rec, i) {
@@ -175,11 +131,7 @@
 
   window.buildPaper = function (rows, meta) {
     meta = meta || {};
-    var answerMode = meta.answerMode;
-    if (answerMode !== 'inline' && answerMode !== 'end' && answerMode !== 'no') {
-      answerMode = meta.answers === false ? 'no' : 'inline';
-    }
-    var withAns = answerMode !== 'no';
+    var withAns = meta.answers !== false;
     var qSize = Number(meta.qSize) > 0 ? Number(meta.qSize) : 11;
     var hSize = Number(meta.hSize) > 0 ? Number(meta.hSize) : 24;
     var wmText = String(meta.watermark || '').trim();
@@ -288,10 +240,6 @@
       return h;
     }
 
-    function setLetterBn(label) {
-      return ({ A: 'ক', B: 'খ', C: 'গ', D: 'ঘ' })[label] || label || 'ক';
-    }
-
     function makeHead(setLabel) {
       if (!(meta.title || meta.tutor || meta.subject || meta.marks || setLabel || meta.minutes)) return null;
       var head = window.el('header', 'paper-head');
@@ -299,25 +247,18 @@
       h1.style.fontSize = hSize + 'px';
       head.appendChild(h1);
       if (meta.tutor) {
-        var subjectText = String(meta.tutor).trim();
-        if (!/^বিষয়\s*[:：]/.test(subjectText)) subjectText = 'বিষয় : ' + subjectText;
-        var subject = window.el('p', 'paper-subject', subjectText);
-        subject.style.fontSize = Math.max(qSize, Math.round(hSize * 0.62)) + 'px';
-        head.appendChild(subject);
+        var tutor = window.el('p', 'paper-tutor', meta.tutor);
+        tutor.style.fontSize = qSize + 'px';
+        head.appendChild(tutor);
       }
-      if (meta.subject) {
-        head.appendChild(window.el('p', 'paper-exam', meta.subject));
-      }
+      head.appendChild(window.el('p', 'paper-sub', meta.subject || ''));
+      head.appendChild(window.el('div', 'head-rule'));
+      var row = window.el('div', 'paper-meta-row');
       var dur = window.durationLabel(meta.minutes);
-      var band = window.el('div', 'paper-band');
-      if (meta.marks) band.appendChild(window.el('span', 'paper-badge paper-marks', 'পূর্ণমান ' + meta.marks));
-      else band.appendChild(window.el('span'));
-      band.appendChild(window.el('span', 'paper-set', 'সেট-' + setLetterBn(setLabel)));
-      if (dur) band.appendChild(window.el('span', 'paper-badge paper-time', 'সময় ' + dur));
-      else band.appendChild(window.el('span'));
-      head.appendChild(band);
-      head.appendChild(window.el('p', 'paper-instruction',
-        meta.instruction || 'প্রিয়: সরবরাহকৃত বহুনির্বাচনি অভীক্ষার উত্তরপত্রে প্রশ্নের ক্রমিক নম্বরের বিপরীতে প্রদত্ত বর্ণসম্বলিত উত্তরগুলো হতে সঠিক/সর্বোত্তম উত্তরটি বল পয়েন্ট কলম দ্বারা সম্পূর্ণ ভরাট কর। প্রতিটি প্রশ্নের মান ১।'));
+      row.appendChild(window.el('span', null, meta.marks ? 'পূর্ণমান: ' + meta.marks : ''));
+      row.appendChild(window.el('span', null, setLabel ? 'সেট: ' + setLabel : ''));
+      row.appendChild(window.el('span', null, dur ? 'সময়: ' + dur : ''));
+      head.appendChild(row);
       head.appendChild(window.el('div', 'head-rule'));
       head.style.marginBottom = HEAD_GAP + 'px';
       return head;
@@ -330,16 +271,14 @@
     for (var s = 0; s < sets; s++) {
       var order = sets > 1 ? seededShuffle(rows, seed + s * 7919) : rows;
       setOrders.push(order);
-      var headNode = makeHead(sets > 1 ? labels[s] : 'ক');
+      var headNode = makeHead(sets > 1 ? labels[s] : '');
       var headH = headNode ? measureTop(headNode) + HEAD_GAP : 0;
-      var qItems = measure(order.map(function (rec, i) {
-        return questionNode(rec, i, answerMode === 'inline');
-      }));
+      var qItems = measure(order.map(function (rec, i) { return questionNode(rec, i); }));
       var qPages = paginate(qItems, Math.max(120, MAX_H - headH));
       renderPages(qPages, qItems, headNode);
     }
 
-    if (withAns && answerMode === 'end') {
+    if (withAns) {
       function keyFor(order) {
         var key = [];
         order.forEach(function (rec, i) {

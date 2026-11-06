@@ -144,17 +144,17 @@
           </div>
         </div>
         <div class="pdf-field">
-          <label class="modal-label" for="pdfTitleIn">প্রতিষ্ঠানের নাম</label>
-          <input type="text" id="pdfTitleIn" placeholder="যেমন: সিরাজগঞ্জ সরকারি কলেজ ঠাকুরগাঁও" autocomplete="off">
+          <label class="modal-label" for="pdfTitleIn">পরীক্ষার নাম</label>
+          <input type="text" id="pdfTitleIn" placeholder="পরীক্ষাপত্র" autocomplete="off">
         </div>
         <div class="pdf-two-col">
           <div class="pdf-field">
-            <label class="modal-label" for="pdfTutor">বিষয় <span class="modal-opt">ঐচ্ছিক</span></label>
-            <input type="text" id="pdfTutor" placeholder="যেমন: রসায়ন ১ম পত্র" autocomplete="off">
+            <label class="modal-label" for="pdfTutor">শিক্ষকের নাম <span class="modal-opt">ঐচ্ছিক</span></label>
+            <input type="text" id="pdfTutor" placeholder="" autocomplete="off">
           </div>
           <div class="pdf-field">
-            <label class="modal-label" for="pdfSubj">পরীক্ষার ধরন <span class="modal-opt">ঐচ্ছিক</span></label>
-            <input type="text" id="pdfSubj" placeholder="যেমন: এইচএসসি পরীক্ষার স্ট্যান্ডার্ড প্রশ্নপত্র" autocomplete="off">
+            <label class="modal-label" for="pdfSubj">টাইটেল <span class="modal-opt">ঐচ্ছিক</span></label>
+            <input type="text" id="pdfSubj" placeholder="যেমন: রসায়ন সাজেশন" autocomplete="off">
           </div>
         </div>
         <div class="pdf-two-col">
@@ -181,7 +181,7 @@
         <label class="pdf-toggle">
           <span class="pdf-toggle-main">
             <span class="pdf-toggle-title">৪টি সেট (A, B, C, D)</span>
-            <span class="pdf-toggle-sub">প্রতি সেটে আলাদা ক্রম · প্রশ্নের নিচে বা শেষে উত্তর ও ব্যাখ্যা</span>
+            <span class="pdf-toggle-sub">প্রতি সেটে আলাদা ক্রম · উত্তর তালিকা · সমাধান শুধু সেট A</span>
           </span>
           <input type="checkbox" id="pdfSets">
           <span class="pdf-toggle-ui" aria-hidden="true"></span>
@@ -189,8 +189,7 @@
         <div class="pdf-field pdf-field-gap">
           <label class="modal-label" for="pdfAns">PDF টাইপ</label>
           <select id="pdfAns">
-            <option value="inline" selected>উত্তরসহ — প্রতিটি প্রশ্নের নিচে উত্তর ও ব্যাখ্যা</option>
-            <option value="end">উত্তরসহ — শেষে উত্তর তালিকা ও সমাধান</option>
+            <option value="yes">উত্তরসহ — উত্তর তালিকা ও সমাধানসহ</option>
             <option value="no">উত্তর ছাড়া — শুধু প্রশ্ন</option>
           </select>
         </div>
